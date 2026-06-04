@@ -80,11 +80,14 @@ def districts_kb(
     return builder.as_markup()
 
 
-def single_district_kb(lang: str, districts: list) -> InlineKeyboardMarkup:
+def single_district_kb(lang: str, districts: list, show_other: bool = True) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for district in districts:
         name = district.name_uz if lang == "uz" else district.name_ru
         builder.button(text=name, callback_data=f"single_dist:{district.id}")
+    if show_other:
+        other_text = "🔍 Boshqa hudud" if lang == "uz" else "🔍 Другой район"
+        builder.button(text=other_text, callback_data="single_dist:other")
     builder.adjust(2)
     return builder.as_markup()
 

@@ -145,6 +145,24 @@ async def get_all_active_districts_for_user(session, district_ids: list):
     return list(result.scalars().all())
 
 
+@router.callback_query(ReportStates.choosing_district, F.data == "single_dist:other")
+async def choose_other_district(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    lang = data.get("lang", "uz")
+
+    async with AsyncSessionLocal() as session:
+        from sqlalchemy import select
+        from database.models import District
+        result = await session.execute(select(District).order_by(District.id))
+        all_districts = list(result.scalars().all())
+
+    await callback.message.edit_text(
+        t(lang, "choose_district"),
+        reply_markup=single_district_kb(lang, all_districts, show_other=False),
+    )
+    await callback.answer()
+
+
 @router.callback_query(ReportStates.choosing_district, F.data.startswith("single_dist:"))
 async def choose_district(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
