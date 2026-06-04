@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.idea/
+*.db
+alembic/versions/*.py
+!alembic/versions/.gitkeep
+/screenshots
+.claude
+Davomat.MD
