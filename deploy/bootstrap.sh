@@ -91,10 +91,16 @@ else
   : "${SUPERADMIN_ID:?SUPERADMIN_ID berilmagan}"
   : "${CHANNEL_ID:?CHANNEL_ID berilmagan}"
 
+  # Parol URL ichiga tushadi: `@`, `:`, `/`, `#` kabi belgilar ajratuvchi
+  # sifatida o'qilib ulanishni buzardi, shuning uchun kodlanadi.
+  # Qiymat argument emas, muhit orqali beriladi — `ps` da ko'rinmasin.
+  DB_PASSWORD_ENC=$("$PYTHON" -c \
+    'import os, urllib.parse; print(urllib.parse.quote(os.environ["DB_PASSWORD"], safe=""))')
+
   umask 077
   cat > .env <<ENVFILE
 BOT_TOKEN=$BOT_TOKEN
-DATABASE_URL=postgresql+asyncpg://$DB_USER:$DB_PASSWORD@localhost:5432/$DB_NAME
+DATABASE_URL=postgresql+asyncpg://$DB_USER:$DB_PASSWORD_ENC@localhost:5432/$DB_NAME
 SUPERADMIN_ID=$SUPERADMIN_ID
 CHANNEL_ID=$CHANNEL_ID
 LOG_LEVEL=INFO
