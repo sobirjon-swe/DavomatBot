@@ -36,9 +36,11 @@ function Shell() {
 
 export function App() {
   // Telegram bergan imzolangan ma'lumot. Brauzerda ochilganda bo'lmaydi —
-  // lokal ishlab chiqish uchun VITE_DEV_INIT_DATA dan olinadi.
+  // lokal ishlab chiqish uchun VITE_DEV_INIT_DATA dan olinadi. Faqat dev
+  // build'da ishlatiladi — aks holda prod build'ga haqiqiy imzolangan
+  // initData qattiq yozilib qolishi xavfi bor.
   const rawInitData = useRawInitData()
-  const initData = rawInitData || import.meta.env.VITE_DEV_INIT_DATA
+  const initData = rawInitData || (import.meta.env.DEV ? import.meta.env.VITE_DEV_INIT_DATA : undefined)
 
   if (!initData) {
     return (

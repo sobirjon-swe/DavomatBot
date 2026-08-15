@@ -30,6 +30,7 @@ from database.crud import (
     list_reports,
     local_today,
     reject_report,
+    revert_report_confirmation,
 )
 from database.models import Report, ReportType, User, UserRole
 from keyboards.pagination import PER_PAGE, page_count
@@ -191,12 +192,16 @@ async def approve(
 ) -> ReportOut:
     report = await _get_or_404(session, report_id)
 
-    if report.is_confirmed or report.is_rejected:
+    # Kanalga yuborishdan oldin hisobotni atom tarzda "band qilamiz" — shunda
+    # ikki admin bir vaqtda tasdiqlasa faqat bittasi kanalga xabar yuboradi.
+    confirmed = await confirm_report(session, report_id, admin.id)
+    if confirmed is None:
         raise _already_processed()
 
-    ok, error = await send_report_to_channel(bot, report)
+    ok, error = await send_report_to_channel(bot, confirmed)
     if not ok:
         # Kanalga bormagan hisobot tasdiqlangan deb belgilanmaydi.
+        await revert_report_confirmation(session, report_id)
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY,
             detail={
@@ -205,10 +210,6 @@ async def approve(
                 "error": (error or "")[:200],
             },
         )
-
-    confirmed = await confirm_report(session, report_id, admin.id)
-    if confirmed is None:
-        raise _already_processed()
 
     logger.info("Hisobot #%s tasdiqlandi (admin id=%s)", report_id, admin.id)
 

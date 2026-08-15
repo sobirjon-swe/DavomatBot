@@ -28,6 +28,17 @@ COLUMNS: list[tuple[str, int]] = [
 
 HEADER_FILL = PatternFill("solid", fgColor="D9E2F3")
 
+# Excel/openpyxl bu belgilar bilan boshlangan matnni formula deb hisoblaydi
+# (masalan, "=cmd|'/c calc'!A1"). Hodim kiritgan matn (customer_name va h.k.)
+# xujjatga to'g'ridan-to'g'ri tushgani uchun formula in'ektsiyasidan himoya kerak.
+_FORMULA_TRIGGERS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _safe_cell(value):
+    if isinstance(value, str) and value.startswith(_FORMULA_TRIGGERS):
+        return "'" + value
+    return value
+
 
 def _local(dt):
     return (dt if dt.tzinfo else dt.replace(tzinfo=UTC)).astimezone(TASHKENT_TZ)
@@ -72,14 +83,14 @@ def build_workbook(lang: str, reports: list[Report]) -> bytes:
                 index,
                 created.strftime("%d.%m.%Y"),
                 created.strftime("%H:%M"),
-                report.user.full_name,
-                report.user.position,
+                _safe_cell(report.user.full_name),
+                _safe_cell(report.user.position),
                 # Dinamik kalit yasash o'rniga mavjud formatter — tarjima
                 # kalitlarini tekshiradigan test dinamik nomni ko'ra olmaydi.
                 format_report_type(lang, report.report_type),
                 report.district.name_uz if lang == "uz" else report.district.name_ru,
-                report.customer_name,
-                ", ".join(rp.partner.full_name for rp in report.partners),
+                _safe_cell(report.customer_name),
+                _safe_cell(", ".join(rp.partner.full_name for rp in report.partners)),
                 report.plots_count,
                 t(lang, _status_key(report)),
                 len(report.photos),

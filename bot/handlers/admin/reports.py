@@ -38,6 +38,7 @@ from locales import t
 from states.admin import AdminExportStates, AdminReportStates
 from utils.export import build_workbook, file_name
 from utils.formatters import build_report_caption, esc, format_datetime
+from utils.menu_texts import RESERVED_MENU_TEXTS
 from utils.messages import text_of
 from utils.reminders import format_missing
 
@@ -111,6 +112,7 @@ async def _show_reports_page(
 async def reports_menu(
     message: Message, state: FSMContext, db_user: User | None = None
 ):
+    await state.clear()
     await message.answer(
         t(db_user.language, "reports_menu"),
         reply_markup=reports_section_kb(db_user.language),
@@ -272,7 +274,7 @@ async def export_range(
     await _send_export(callback.message, lang, date_from, date_to)
 
 
-@router.message(AdminExportStates.entering_range)
+@router.message(AdminExportStates.entering_range, ~F.text.in_(RESERVED_MENU_TEXTS))
 async def export_custom_range(
     message: Message, state: FSMContext, db_user: User | None = None
 ):
@@ -312,7 +314,7 @@ async def search_reports_start(
     await callback.answer()
 
 
-@router.message(AdminReportStates.entering_date)
+@router.message(AdminReportStates.entering_date, ~F.text.in_(RESERVED_MENU_TEXTS))
 async def search_enter_date(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")

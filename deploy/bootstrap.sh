@@ -64,10 +64,16 @@ if [ -z "$PYTHON" ]; then
 fi
 echo "Python: $PYTHON ($("$PYTHON" --version))"
 
-# venv moduli alohida paketda bo'lishi mumkin (Debian/Ubuntu)
+# venv moduli alohida paketda bo'lishi mumkin (Debian/Ubuntu). Paket nomi
+# aynan $PYTHON versiyasiga mos bo'lishi kerak — "python3-venv" generic
+# paket faqat distributivning standart python3 (masalan 3.10) uchun venv
+# qo'shadi, agar $PYTHON boshqa versiya (masalan deadsnakes'dan 3.11)
+# bo'lsa, "$PYTHON -m venv" baribir "ensurepip is not available" bilan
+# yiqiladi.
 if ! "$PYTHON" -c "import venv" 2>/dev/null; then
   $SUDO apt-get update -qq
-  $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-venv
+  $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${PYTHON}-venv" \
+    || $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-venv
 fi
 
 # ─── 2. Baza ────────────────────────────────────────────────────────────────

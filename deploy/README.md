@@ -167,8 +167,10 @@ deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart davomat, \
 tekshiring: `command -v systemctl` (odatda `/usr/bin/systemctl`, ba'zi
 tizimlarda `/bin/systemctl`).
 
-Sir sizib chiqqan taqdirda ham hujumchi qila oladigan yagona narsa —
-xizmatni qayta ishga tushirish.
+Sir sizib chiqqan taqdirda hujumchi xizmatni qayta ishga tushirishi,
+shuningdek `/var/www/davomat` (nginx statik web root, 5-bo'limga qarang)
+egaligini o'ziga o'tkazib, u yerdagi fayllarni almashtirishi mumkin — bu
+ro'yxatni faqat haqiqatan kerak bo'lgan buyruqlar bilan cheklab turing.
 
 **Bootstrap** boshqa masala: u paket o'rnatadi, foydalanuvchi yaratadi va
 systemd unit qo'yadi, ya'ni to'liq huquq talab qiladi. Uni bir marta root

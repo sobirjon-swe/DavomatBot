@@ -5,6 +5,8 @@ const locationManager = {
   isMounted: vi.fn(() => false),
   requestLocation: Object.assign(vi.fn(), { isAvailable: vi.fn(() => true) }),
   openSettings: Object.assign(vi.fn(), { isAvailable: vi.fn(() => false) }),
+  isAccessRequested: vi.fn(() => false),
+  isAccessGranted: vi.fn(() => true),
 }
 
 vi.mock('@telegram-apps/sdk-react', () => ({
@@ -27,6 +29,8 @@ beforeEach(() => {
   locationManager.mount.isAvailable.mockReturnValue(false)
   locationManager.isMounted.mockReturnValue(false)
   locationManager.requestLocation.isAvailable.mockReturnValue(true)
+  locationManager.isAccessRequested.mockReturnValue(false)
+  locationManager.isAccessGranted.mockReturnValue(true)
 })
 
 afterEach(() => {
@@ -79,6 +83,20 @@ describe('Telegram LocationManager', () => {
     })
 
     expect(await getCurrentLocation()).toEqual({ lat: 42, lon: 70, accuracy: 5 })
+  })
+
+  it('ruxsat aniq rad etilsa brauzerga o‘tmay "denied" beradi', async () => {
+    locationManager.mount.isAvailable.mockReturnValue(true)
+    locationManager.isMounted.mockReturnValue(true)
+    locationManager.requestLocation.mockRejectedValue(new Error('access denied'))
+    locationManager.isAccessRequested.mockReturnValue(true)
+    locationManager.isAccessGranted.mockReturnValue(false)
+
+    const failure = (await getCurrentLocation().catch((e: unknown) => e)) as InstanceType<
+      typeof LocationError
+    >
+    expect(failure).toBeInstanceOf(LocationError)
+    expect(failure.code).toBe('denied')
   })
 
   it('tushunarsiz javob kelsa brauzerga o‘tadi', async () => {

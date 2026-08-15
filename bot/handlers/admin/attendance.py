@@ -10,6 +10,7 @@ from database.crud import (
     get_report_by_id,
     get_unconfirmed_reports,
     reject_report,
+    revert_report_confirmation,
 )
 from database.models import User
 from database.session import AsyncSessionLocal
@@ -76,6 +77,7 @@ async def _render_page(message: Message, lang: str, page: int, *, edit: bool) ->
 async def attendance_menu(
     message: Message, state: FSMContext, db_user: User | None = None
 ):
+    await state.clear()
     await _render_page(message, db_user.language, 1, edit=False)
 
 
@@ -103,27 +105,27 @@ async def approve_report(
     if not report:
         await callback.answer(t(lang, "report_not_found"), show_alert=True)
         return
-    if report.is_confirmed or report.is_rejected:
-        await callback.answer(t(lang, "report_already_processed"), show_alert=True)
-        await _render_page(callback.message, lang, page, edit=True)
-        return
 
-    ok, error = await send_report_to_channel(bot, report)
-    if not ok:
-        # Kanalga bormagan hisobot tasdiqlangan deb belgilanmaydi.
-        await callback.message.answer(
-            t(lang, "channel_send_failed", error=esc((error or "")[:200])),
-            parse_mode="HTML",
-        )
-        await callback.answer(t(lang, "report_not_approved"), show_alert=True)
-        return
-
+    # Kanalga yuborishdan oldin hisobotni atom tarzda "band qilamiz" — shunda
+    # ikki admin bir vaqtda tasdiqlasa faqat bittasi kanalga xabar yuboradi.
     async with AsyncSessionLocal() as session:
         confirmed = await confirm_report(session, report_id, db_user.id)
 
     if confirmed is None:
         await callback.answer(t(lang, "report_already_processed"), show_alert=True)
         await _render_page(callback.message, lang, page, edit=True)
+        return
+
+    ok, error = await send_report_to_channel(bot, confirmed)
+    if not ok:
+        # Kanalga bormagan hisobot tasdiqlangan deb belgilanmaydi.
+        async with AsyncSessionLocal() as session:
+            await revert_report_confirmation(session, report_id)
+        await callback.message.answer(
+            t(lang, "channel_send_failed", error=esc((error or "")[:200])),
+            parse_mode="HTML",
+        )
+        await callback.answer(t(lang, "report_not_approved"), show_alert=True)
         return
 
     logger.info("Hisobot #%s tasdiqlandi, admin id=%s", report_id, db_user.id)

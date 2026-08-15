@@ -3,7 +3,7 @@ from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 import bcrypt
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import Select
@@ -143,16 +143,19 @@ async def link_telegram_account(
     """Oldindan yaratilgan hodim yozuvini Telegram hisobiga bog'laydi.
 
     Yozuv allaqachon band bo'lsa None qaytaradi — bu ikki kishi bitta
-    hodimni tanlab qo'yishining oldini oladi.
+    hodimni tanlab qo'yishining oldini oladi. `telegram_id IS NULL` shartini
+    UPDATE ichida tekshirish (o'qib-keyin-yozish emas) ikki kishi bir vaqtda
+    bitta yozuvni band qilishga urinishini bir xil natijaga olib keladi.
     """
-    user = await get_user_by_id(session, user_id)
-    if not user or user.telegram_id is not None:
-        return None
-    user.telegram_id = telegram_id
-    user.language = language
+    result = await session.execute(
+        update(User)
+        .where(User.id == user_id, User.telegram_id.is_(None))
+        .values(telegram_id=telegram_id, language=language)
+    )
     await session.commit()
-    await session.refresh(user)
-    return user
+    if result.rowcount == 0:
+        return None
+    return await get_user_by_id(session, user_id)
 
 
 async def get_all_active_employees(session: AsyncSession) -> list[User]:
@@ -514,14 +517,39 @@ async def count_unconfirmed_reports(session: AsyncSession) -> int:
 async def confirm_report(
     session: AsyncSession, report_id: int, confirmed_by: int
 ) -> Report | None:
-    report = await get_report_by_id(session, report_id)
-    if not report or report.is_confirmed or report.is_rejected:
-        return None
-    report.is_confirmed = True
-    report.confirmed_by = confirmed_by
-    report.confirmed_at = utcnow()
+    """Hisobotni tasdiqlaydi.
+
+    `is_confirmed`/`is_rejected` shartini UPDATE ichida tekshirish ikki admin
+    bir vaqtda bitta hisobotni tasdiqlash/rad etishga uringanda faqat
+    bittasi o'tishini kafolatlaydi (o'qib-keyin-yozishda ikkalasi ham
+    o'tib ketishi mumkin edi).
+    """
+    result = await session.execute(
+        update(Report)
+        .where(
+            Report.id == report_id,
+            Report.is_confirmed.is_(False),
+            Report.is_rejected.is_(False),
+        )
+        .values(is_confirmed=True, confirmed_by=confirmed_by, confirmed_at=utcnow())
+    )
     await session.commit()
-    return report
+    if result.rowcount == 0:
+        return None
+    return await get_report_by_id(session, report_id)
+
+
+async def revert_report_confirmation(session: AsyncSession, report_id: int) -> None:
+    """`confirm_report` dan keyin kanalga yuborish muvaffaqiyatsiz bo'lsa chaqiriladi.
+
+    Hisobot qayta tasdiqlash uchun ochiq holatga qaytariladi.
+    """
+    await session.execute(
+        update(Report)
+        .where(Report.id == report_id)
+        .values(is_confirmed=False, confirmed_by=None, confirmed_at=None)
+    )
+    await session.commit()
 
 
 async def reject_report(
@@ -529,16 +557,22 @@ async def reject_report(
 ) -> Report | None:
     """Hisobotni rad etadi.
 
-    Yozuv o'chirilmaydi — kim, qachon rad etgani saqlanib qoladi.
+    Yozuv o'chirilmaydi — kim, qachon rad etgani saqlanib qoladi. Shart
+    UPDATE ichida tekshiriladi — sabab confirm_report bilan bir xil.
     """
-    report = await get_report_by_id(session, report_id)
-    if not report or report.is_confirmed or report.is_rejected:
-        return None
-    report.is_rejected = True
-    report.rejected_by = rejected_by
-    report.rejected_at = utcnow()
+    result = await session.execute(
+        update(Report)
+        .where(
+            Report.id == report_id,
+            Report.is_confirmed.is_(False),
+            Report.is_rejected.is_(False),
+        )
+        .values(is_rejected=True, rejected_by=rejected_by, rejected_at=utcnow())
+    )
     await session.commit()
-    return report
+    if result.rowcount == 0:
+        return None
+    return await get_report_by_id(session, report_id)
 
 
 # ─── Access Password ─────────────────────────────────────────────────────────
