@@ -165,7 +165,17 @@ else
   ./.venv/bin/alembic upgrade head
 fi
 
-# ─── 7. Xizmat ──────────────────────────────────────────────────────────────
+# ─── 7. Mini App uchun katalog ──────────────────────────────────────────────
+
+log "Statik fayllar katalogi"
+WEB_ROOT="${WEB_ROOT:-/var/www/davomat}"
+$SUDO mkdir -p "$WEB_ROOT"
+# Egalik SSH foydalanuvchisiga beriladi: deploy workflow i frontendni shu
+# yerga scp bilan yuklaydi va buni root siz qila olishi kerak.
+$SUDO chown "$(id -un):$(id -gn)" "$WEB_ROOT"
+echo "$WEB_ROOT tayyor."
+
+# ─── 8. Xizmat ──────────────────────────────────────────────────────────────
 
 log "systemd xizmati"
 id -u "$SERVICE_USER" >/dev/null 2>&1 \
