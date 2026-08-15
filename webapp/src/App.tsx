@@ -5,6 +5,7 @@ import { AppShell } from '@/components/AppShell'
 import { ErrorScreen, LoadingScreen } from '@/components/StatusScreen'
 import { ApiProvider, useMe } from '@/lib/queries'
 import { EmployeesPage } from '@/pages/EmployeesPage'
+import { NewReportPage } from '@/pages/NewReportPage'
 import { ReportDetailPage } from '@/pages/ReportDetailPage'
 import { ReportsPage } from '@/pages/ReportsPage'
 
@@ -21,6 +22,7 @@ function Shell() {
     <Routes>
       <Route element={<AppShell me={me.data} />}>
         <Route index element={<ReportsPage />} />
+        <Route path="new" element={<NewReportPage />} />
         <Route path="reports/:id" element={<ReportDetailPage />} />
         <Route
           path="employees"

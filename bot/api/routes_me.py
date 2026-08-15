@@ -5,11 +5,14 @@ from api.schemas import (
     DistrictOut,
     DistrictsUpdate,
     LanguageUpdate,
+    UserBrief,
     UserOut,
     district_out,
+    user_brief,
     user_out,
 )
 from database.crud import (
+    get_all_active_employees,
     get_all_districts,
     get_districts_by_ids,
     get_user_by_id,
@@ -55,3 +58,14 @@ async def change_my_districts(
 @router.get("/districts", response_model=list[DistrictOut])
 async def list_districts(user: CurrentUser, session: SessionDep) -> list[DistrictOut]:
     return [district_out(d) for d in await get_all_districts(session)]
+
+
+@router.get("/colleagues", response_model=list[UserBrief])
+async def list_colleagues(user: CurrentUser, session: SessionDep) -> list[UserBrief]:
+    """Hisobotga sherik qilib qo'shish mumkin bo'lgan hodimlar.
+
+    /employees dan farqi — bu hamma uchun ochiq, lekin faqat ism va
+    lavozimni beradi: rol, tumanlar va faollik holati chiqmaydi.
+    """
+    employees = await get_all_active_employees(session)
+    return [user_brief(e) for e in employees if e.id != user.id]

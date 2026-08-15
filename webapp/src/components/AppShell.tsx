@@ -1,5 +1,5 @@
 import { backButton } from '@telegram-apps/sdk-react'
-import { ClipboardList, Users } from 'lucide-react'
+import { ClipboardList, PlusCircle, Users } from 'lucide-react'
 import { useEffect } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 
 const TABS = [
   { to: '/', label: 'Hisobotlar', icon: ClipboardList, adminOnly: false },
+  { to: '/new', label: 'Yangi', icon: PlusCircle, adminOnly: false },
   { to: '/employees', label: 'Hodimlar', icon: Users, adminOnly: true },
 ] as const
 

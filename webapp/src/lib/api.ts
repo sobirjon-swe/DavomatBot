@@ -55,6 +55,26 @@ export interface Page<T> {
   pages: number
 }
 
+export interface PhotoUploaded {
+  file_id: string
+}
+
+/** POST /api/reports tanasi. Server tomonda ham qayta tekshiriladi. */
+export interface ReportInput {
+  report_type: Report['report_type']
+  district_id: number
+  customer_name: string
+  lat: number
+  lon: number
+  plots_count?: number | null
+  partner_ids: number[]
+  photo_file_ids: string[]
+}
+
+/** Rasm chegaralari — serverdagi MIN/MAX_REPORT_PHOTOS bilan mos. */
+export const MIN_PHOTOS = 3
+export const MAX_PHOTOS = 7
+
 /** Serverdan kelgan xato. `code` bo'yicha UI qaror qabul qiladi. */
 export class ApiError extends Error {
   constructor(
@@ -131,6 +151,24 @@ export function createApi(initData: string) {
     getMe: () => request<User>('/me'),
 
     getDistricts: () => request<District[]>('/districts'),
+
+    /** Sherik qilib qo'shish mumkin bo'lgan hodimlar (o'zidan tashqari). */
+    getColleagues: () => request<UserBrief[]>('/colleagues'),
+
+    /**
+     * Rasmni yuklab, Telegram file_id ni oladi.
+     *
+     * Content-Type ataylab qo'yilmaydi: FormData bilan brauzerning o'zi
+     * boundary bilan birga to'g'ri sarlavhani yozadi.
+     */
+    uploadPhoto: (file: File) => {
+      const form = new FormData()
+      form.append('file', file)
+      return request<PhotoUploaded>('/photos', { method: 'POST', body: form })
+    },
+
+    createReport: (payload: ReportInput) =>
+      request<Report>('/reports', { method: 'POST', body: JSON.stringify(payload) }),
 
     listReports: (params: {
       day?: string

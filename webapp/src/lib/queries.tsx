@@ -1,7 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
 
-import { ApiError, createApi, type Api, type ReportStatus } from './api'
+import {
+  ApiError,
+  createApi,
+  type Api,
+  type ReportInput,
+  type ReportStatus,
+} from './api'
 
 const ApiContext = createContext<Api | null>(null)
 
@@ -62,6 +68,38 @@ export function useEmployees(page: number) {
     queryKey: ['employees', page],
     queryFn: () => api.listEmployees({ page, per_page: 20 }),
     retry: shouldRetry,
+  })
+}
+
+export function useColleagues() {
+  const api = useApi()
+  return useQuery({
+    queryKey: ['colleagues'],
+    queryFn: () => api.getColleagues(),
+    retry: shouldRetry,
+  })
+}
+
+export function useDistricts() {
+  const api = useApi()
+  return useQuery({
+    queryKey: ['districts'],
+    queryFn: () => api.getDistricts(),
+    // Tumanlar deyarli o'zgarmaydi
+    staleTime: 60 * 60 * 1000,
+    retry: shouldRetry,
+  })
+}
+
+export function useCreateReport() {
+  const api = useApi()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: ReportInput) => api.createReport(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['reports'] })
+    },
   })
 }
 

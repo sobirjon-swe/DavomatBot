@@ -226,11 +226,30 @@ tushunarli xato bilan to'xtaydi.
 |---|---|
 | Hisobotlar ro'yxati (filtr: kutilmoqda / tasdiqlangan / hammasi) | tayyor |
 | Hisobot kartochkasi, xaritada ochish, tasdiqlash/rad etish | tayyor |
+| Hisobot yuborish formasi | tayyor |
 | Hodimlar ro'yxati (admin) | tayyor |
-| Hisobot yuborish formasi | keyingi bosqich |
+| Hodim qo'shish / tahrirlash | keyingi bosqich |
 
 Hodim faqat o'zi qatnashgan hisobotlarni ko'radi — bu serverda
 majburlanadi, frontend faqat shunga mos ko'rinish beradi.
+
+### Hisobot formasi
+
+Botdagi 8 bosqichli suhbat o'rniga bitta ekran. Ba'zi nozik joylar:
+
+* **Rasmlar tanlangan zahoti yuklanadi** va `file_id` ga aylanadi, shuning
+  uchun "Yuborish" bosilganda kutish deyarli qolmaydi. Har bir rasmning
+  holati alohida ko'rsatiladi va xato bo'lganini o'chirib qayta urinish mumkin.
+* **Yuborish tugmasi — Telegramning MainButton i**: u klaviatura ustida
+  turadi va sahifa bilan siljimaydi. Brauzerda yoki eski mijozda u yo'q,
+  shuning uchun sahifa ichida oddiy tugma ham bor.
+* **Joylashuv** avval Telegram `LocationManager` idan (Bot API 8.0+), keyin
+  brauzer geolokatsiyasidan olinadi. Ikkalasi ham ishlamasa, foydalanuvchiga
+  hisobotni bot orqali yuborish taklif qilinadi — chatdagi "Joylashuvni
+  yuborish" tugmasi barcha mijozlarda ishlaydi.
+* Nima yetishmayotgani doim ko'rinib turadi ("Yuborish uchun kerak:
+  joylashuv, yana 2 ta rasm"), shuning uchun tugma nega o'chiqligi savol
+  tug'dirmaydi.
 
 ## Testlar va linter
 

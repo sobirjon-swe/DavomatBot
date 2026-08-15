@@ -120,6 +120,38 @@ async def test_notogri_til_rad_etiladi(api_client, employee):
     assert response.status_code == 422
 
 
+async def test_hamkasblar_royxati_ozini_chiqarmaydi(
+    api_client, session, employee, admin
+):
+    """Sherik tanlashda o'zini tanlash mumkin bo'lmasligi kerak."""
+    response = await api_client.get(
+        "/api/colleagues", headers=auth_header(employee.telegram_id)
+    )
+    ids = [u["id"] for u in response.json()]
+
+    assert response.status_code == 200
+    assert employee.id not in ids
+    assert admin.id in ids
+
+
+async def test_hamkasblar_faqat_ism_va_lavozim_beradi(api_client, employee, admin):
+    response = await api_client.get(
+        "/api/colleagues", headers=auth_header(employee.telegram_id)
+    )
+
+    assert set(response.json()[0]) == {"id", "full_name", "position"}
+
+
+async def test_faolsiz_hamkasb_royxatda_yoq(api_client, session, employee, admin):
+    await crud.set_user_active(session, admin.id, False)
+
+    response = await api_client.get(
+        "/api/colleagues", headers=auth_header(employee.telegram_id)
+    )
+
+    assert response.json() == []
+
+
 async def test_mavjud_bolmagan_tuman_400(api_client, employee, districts):
     response = await api_client.put(
         "/api/me/districts",
