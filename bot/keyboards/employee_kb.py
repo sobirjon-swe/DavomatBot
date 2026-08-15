@@ -2,6 +2,7 @@ from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboa
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 import config
+from keyboards import webapp
 from locales import t
 
 
@@ -30,7 +31,15 @@ def main_menu_kb(lang: str) -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     builder.button(text=t(lang, "btn_report"))
     builder.button(text=t(lang, "btn_settings"))
-    builder.adjust(2)
+
+    app_button = webapp.reply_button(lang)
+    if app_button is not None:
+        builder.add(app_button)
+        # Ilova tugmasi alohida qatorda — u boshqa turdagi amal
+        builder.adjust(2, 1)
+    else:
+        builder.adjust(2)
+
     return builder.as_markup(resize_keyboard=True)
 
 

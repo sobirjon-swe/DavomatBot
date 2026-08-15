@@ -1,6 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
+from keyboards import webapp
 from locales import t
 
 
@@ -21,7 +22,16 @@ def admin_main_menu_kb(lang: str, is_superadmin: bool = False) -> ReplyKeyboardM
     builder.button(text=t(lang, "btn_settings"))
     if is_superadmin:
         builder.button(text=t(lang, "btn_manage_roles"))
-    builder.adjust(2)
+
+    app_button = webapp.reply_button(lang)
+    if app_button is not None:
+        builder.add(app_button)
+        # Ro'yxatlar bilan ishlash ilovada qulayroq — tugma alohida,
+        # ko'rinadigan qatorda turadi.
+        builder.adjust(2, 2, 2, 1)
+    else:
+        builder.adjust(2)
+
     return builder.as_markup(resize_keyboard=True)
 
 

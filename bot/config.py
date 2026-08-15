@@ -40,8 +40,20 @@ LOG_LEVEL: str = _get_str("LOG_LEVEL", "INFO").upper()
 API_HOST: str = _get_str("API_HOST", "127.0.0.1")
 API_PORT: int = _get_int("API_PORT", 8000)
 
-# Mini App ochiladigan HTTPS manzil (BotFather ga ham shu kiritiladi)
-WEBAPP_URL: str = _get_str("WEBAPP_URL")
+def _webapp_url(name: str) -> str:
+    """Mini App manzili. Telegram faqat HTTPS ni ochadi."""
+    url = _get_str(name)
+    if url and not url.startswith("https://"):
+        raise ConfigError(
+            f"{name} https:// bilan boshlanishi kerak — Telegram Mini App "
+            f"shifrlanmagan manzilni ochmaydi. Berilgan qiymat: {url!r}"
+        )
+    return url.rstrip("/")
+
+
+# Mini App ochiladigan HTTPS manzil (BotFather ga ham shu kiritiladi).
+# Bo'sh qoldirilsa bot Mini App tugmalarini umuman ko'rsatmaydi.
+WEBAPP_URL: str = _webapp_url("WEBAPP_URL")
 
 # Brauzerdan kelgan initData qancha vaqt haqiqiy hisoblanadi.
 # Telegram uni ilova ochilganda yangilaydi; eski qiymatni qayta ishlatishning

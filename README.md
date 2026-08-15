@@ -206,6 +206,20 @@ ranglarni HEX ko'rinishida beradi.
 sarlavhasida yuboriladi. Brauzerda (Telegramdan tashqarida) initData
 bo'lmaydi — lokal sinov uchun `.env.local` ga `VITE_DEV_INIT_DATA` yozing.
 
+### Botdan ochish
+
+`WEBAPP_URL` to'ldirilgandan keyin bot ilovaga ikki yo'l beradi:
+
+1. **Doimiy menyu tugmasi** — kiritish maydoni yonida, barcha foydalanuvchilar
+   uchun. Bot ishga tushganda avtomatik o'rnatiladi.
+2. **Asosiy menyudagi "📱 Ilovani ochish"** tugmasi — hodim va admin
+   klaviaturalarida.
+
+`WEBAPP_URL` bo'sh bo'lsa tugmalar umuman ko'rsatilmaydi va menyu tugmasi
+oddiy buyruqlar ro'yxatiga qaytariladi — ishlamaydigan tugma qolib
+ketmasligi uchun. Manzil `https://` bilan boshlanmasa bot ishga tushishda
+tushunarli xato bilan to'xtaydi.
+
 ### Nima tayyor
 
 | Ekran | Holat |

@@ -19,6 +19,7 @@ from handlers.admin.roles import router as roles_router
 from handlers.employee.report import router as report_router
 from handlers.employee.settings import router as settings_router
 from handlers.start import router as start_router
+from keyboards import webapp
 from middlewares.auth import AuthMiddleware
 
 logger = logging.getLogger(__name__)
@@ -69,6 +70,15 @@ async def on_startup(bot: Bot) -> None:
             BotCommand(command="cancel", description="Bekor qilish / Отмена"),
         ]
     )
+
+    # Kiritish maydoni yonidagi doimiy tugma. WEBAPP_URL bo'lmasa oddiy
+    # buyruqlar menyusi qo'yiladi — eski tugma osilib qolmasligi uchun.
+    await bot.set_chat_menu_button(menu_button=webapp.menu_button())
+    if webapp.is_enabled():
+        logger.info("Mini App tugmasi yoqildi: %s", config.WEBAPP_URL)
+    else:
+        logger.info("WEBAPP_URL ko'rsatilmagan — Mini App tugmalari yashirildi.")
+
     logger.info("Bot ishga tushdi.")
 
 

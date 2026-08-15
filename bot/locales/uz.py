@@ -49,6 +49,10 @@ main_menu = "📌 Bosh menyu"
 btn_report = "📋 Ma'lumot berish"
 btn_settings = "⚙️ Sozlamalar"
 
+# ─── Mini App ───────────────────────────────────────────────────────────────
+btn_open_app = "📱 Ilovani ochish"
+menu_button_app = "Davomat"
+
 # ─── Sozlamalar ─────────────────────────────────────────────────────────────
 settings_menu = "⚙️ Sozlamalar"
 btn_edit_districts = "📍 Tumanlarni tahrirlash"
