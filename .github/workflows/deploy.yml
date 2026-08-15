@@ -5,20 +5,92 @@ on:
     branches:
       - main
 
+# Ikki deploy bir vaqtda ketmasin — migratsiya o'rtasida ikkinchisi
+# boshlansa baza noaniq holatda qolishi mumkin.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy via SSH
+      - uses: actions/checkout@v4
+
+      # ─── Mini App ────────────────────────────────────────────────────────
+      # Frontend shu yerda yig'iladi, VPS ga Node o'rnatish shart emas.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: pnpm ni yoqish
+        run: corepack enable
+
+      - name: Frontend bog'liqliklari
+        run: pnpm install --frozen-lockfile
+        working-directory: webapp
+
+      - name: Frontendni yig'ish
+        run: pnpm run build
+        working-directory: webapp
+
+      - name: Statik fayllarni yuklash
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "webapp/dist/*"
+          target: /var/www/davomat
+          strip_components: 2
+
+      # ─── Backend ─────────────────────────────────────────────────────────
+      - name: Backendni yangilash va xizmatlarni qayta ishga tushirish
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -euo pipefail
             cd /home/DavomatBot/bot
+
             git pull origin main
             source .venv/bin/activate
             pip install -r requirements.txt
+
+            # Alembic hali ulanmagan bo'lsa, `upgrade head` "jadval
+            # allaqachon mavjud" degan tushunarsiz xato beradi. Sababni
+            # oldindan aytamiz.
+            if ! alembic current 2>/dev/null | grep -q .; then
+              echo "::error::Alembic bu bazada ulanmagan."
+              echo "Bir marta bajaring: cd /home/DavomatBot/bot && source .venv/bin/activate && alembic stamp 0001"
+              exit 1
+            fi
+            alembic upgrade head
+
             systemctl restart davomat
+
+            # davomat-api ixtiyoriy: Mini App hali sozlanmagan serverda
+            # bu xizmat bo'lmasligi mumkin va deploy shu sababli
+            # yiqilmasligi kerak.
+            if systemctl list-unit-files --no-legend | grep -q '^davomat-api\.service'; then
+              systemctl restart davomat-api
+              HAS_API=1
+            else
+              echo "::warning::davomat-api xizmati topilmadi — Mini App API o'tkazib yuborildi."
+              HAS_API=0
+            fi
+
+            # Deploy yashil ko'rinib, xizmat o'chiq turmasligi uchun
+            sleep 5
+            systemctl is-active --quiet davomat
+
+            if [ "$HAS_API" = "1" ]; then
+              systemctl is-active --quiet davomat-api
+              curl -fsS http://127.0.0.1:8000/api/health > /dev/null
+              echo "Deploy tugadi: bot va API ishlayapti."
+            else
+              echo "Deploy tugadi: bot ishlayapti."
+            fi

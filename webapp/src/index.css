@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Ranglar Telegram bergan mavzudan olinadi (--tg-theme-*), shuning uchun
+  ilova foydalanuvchining kunduzgi/tungi rejimiga o'zi moslashadi.
+  Fallback qiymatlar Telegramdan tashqarida (brauzerda) ochilganda ishlaydi.
+*/
+:root {
+  --app-bg: var(--tg-theme-bg-color, #ffffff);
+  --app-fg: var(--tg-theme-text-color, #000000);
+  --app-card: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, #ffffff));
+  --app-muted: var(--tg-theme-secondary-bg-color, #f1f1f4);
+  --app-muted-fg: var(--tg-theme-hint-color, #707579);
+  --app-primary: var(--tg-theme-button-color, #2481cc);
+  --app-primary-fg: var(--tg-theme-button-text-color, #ffffff);
+  --app-destructive: var(--tg-theme-destructive-text-color, #df3f40);
+  --app-success: #1a9c4b;
+  --app-border: var(--tg-theme-section-separator-color, rgba(128, 128, 128, 0.2));
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family:
+      -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+      sans-serif;
+    /* Telegram to'liq ekranda tepa/pastda tizim panellari bo'lishi mumkin */
+    padding-top: var(--tg-viewport-safe-area-inset-top, 0px);
+    padding-bottom: var(--tg-viewport-safe-area-inset-bottom, 0px);
+    overscroll-behavior-y: none;
+  }
+
+  /* Mini App da matnni belgilash odatda tasodifiy bo'ladi */
+  body,
+  button {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+}

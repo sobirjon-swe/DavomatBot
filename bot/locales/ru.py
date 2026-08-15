@@ -6,12 +6,31 @@ btn_ru = "🇷🇺 Русский"
 enter_password = "🔑 Введите пароль для входа:"
 wrong_password = "❌ Неверный пароль. Попробуйте снова. ({attempts}/3)"
 account_blocked = "⛔ Вы заблокированы. Обратитесь к администратору."
+account_deactivated = "⛔ Ваша учётная запись деактивирована. Обратитесь к администратору."
+
+text_expected = "✍️ Пожалуйста, отправьте текстом."
+location_expected = "📍 Пожалуйста, отправьте местоположение через кнопку."
+invalid_number = "🔢 Введите только число."
+action_cancelled = "❌ Действие отменено."
+nothing_to_cancel = "ℹ️ Нечего отменять."
+
+# ─── Постраничный вывод ──────────────────────────────────────────────────────
+btn_back_to_list = "◀️ К списку"
+employees_list_header = "👥 <b>Сотрудники</b> — всего {total}"
+reports_list_header = "📊 <b>Отчёты</b> — всего {total}"
+pending_list_header = "✅ <b>Ожидают подтверждения</b> — всего {total}"
 
 # ─── Регистрация ─────────────────────────────────────────────────────────────
 enter_full_name = "👤 Введите ваше имя и фамилию:"
 enter_position = "💼 Введите вашу должность:"
 choose_districts = "🗺 Выберите назначенные вам районы:\n(Можно выбрать несколько)"
 no_districts_selected = "⚠️ Выберите хотя бы один район."
+choose_your_record = (
+    "👤 Найдите себя в списке:\n"
+    "(Администратор мог добавить вас заранее)"
+)
+btn_not_in_list = "➕ Меня нет в списке"
+record_already_taken = "⚠️ Эта запись уже занята. Выберите другую."
 registration_complete = (
     "✅ Вы зарегистрированы!\n\n"
     "👤 Имя: {full_name}\n"
@@ -29,6 +48,10 @@ new_employee_notify = (
 main_menu = "📌 Главное меню"
 btn_report = "📋 Подать отчёт"
 btn_settings = "⚙️ Настройки"
+
+# ─── Mini App ────────────────────────────────────────────────────────────────
+btn_open_app = "📱 Открыть приложение"
+menu_button_app = "Davomat"
 
 # ─── Настройки ───────────────────────────────────────────────────────────────
 settings_menu = "⚙️ Настройки"
@@ -49,13 +72,15 @@ btn_no_partner = "👤 Без партнёра"
 btn_continue = "▶️ Продолжить"
 
 choose_district = "🗺 Выберите район:"
+btn_other_district = "🔍 Другой район"
 enter_customer = "🏢 Введите название заказчика:"
 send_location = "📍 Отправьте ваше местоположение:"
 btn_send_location = "📍 Отправить местоположение"
-send_photos = "📸 Отправьте фотографии (3-7 штук):"
-photos_progress = "📸 Отправлено фото: {count}/3"
+send_photos = "📸 Отправьте фотографии ({min}-{max} шт.):"
+photos_progress = "📸 Отправлено фото: {count} (нужно минимум {min})"
 btn_done = "✅ Готово"
-min_photos_required = "📸 Необходимо отправить минимум 3 фотографии."
+min_photos_required = "📸 Необходимо отправить минимум {min} фотографии."
+max_photos_reached = "📸 Можно отправить не более {max} фотографий."
 enter_plots_count = "🔢 Введите количество участков или пропустите:"
 btn_skip = "⏭ Пропустить"
 
@@ -73,8 +98,12 @@ report_preview_plots = "\n🔢 Участки: {plots_count}"
 btn_submit = "✅ Отправить"
 btn_refill = "✏️ Заполнить заново"
 
-report_submitted = "✅ Ваш отчёт принят!\nОжидайте подтверждения от Салохиддина."
+report_submitted = "✅ Ваш отчёт принят!\nОжидайте подтверждения администратора."
 report_cancelled = "❌ Отчёт отменён."
+report_approved_notify = "✅ Ваш отчёт подтверждён и отправлен в канал."
+report_rejected_notify = (
+    "❌ Ваш отчёт отклонён. За подробностями обратитесь к администратору."
+)
 
 partner_notified = (
     "📋 <b>{sender}</b> добавил(а) вас как партнёра в сегодняшний отчёт.\n\n"
@@ -117,25 +146,38 @@ employee_card = (
     "💼 {position}\n"
     "🔑 Роль: {role}\n"
     "🗺 Районы: {districts}\n"
-    "📅 Добавлен: {created_at}"
+    "📅 Добавлен: {created_at}\n"
+    "📌 Статус: {status}"
 )
+status_active = "активен"
+status_inactive = "деактивирован"
+
 btn_edit = "✏️ Изменить"
-btn_delete = "🗑 Удалить"
-confirm_delete = "⚠️ Вы уверены, что хотите удалить?\n\n👤 {full_name}"
-btn_yes_delete = "✅ Да, удалить"
+btn_deactivate = "🚫 Деактивировать"
+btn_activate = "♻️ Восстановить"
+btn_yes_deactivate = "✅ Да, деактивировать"
+confirm_deactivate = (
+    "⚠️ Деактивировать сотрудника?\n\n"
+    "👤 {full_name}\n\n"
+    "Его отчёты сохранятся, но он не сможет пользоваться ботом."
+)
+employee_deactivated = "✅ Сотрудник деактивирован."
+employee_activated = "✅ Сотрудник восстановлен."
+cannot_deactivate_self = "⚠️ Нельзя деактивировать самого себя."
 btn_cancel = "❌ Отмена"
-employee_deleted = "✅ Сотрудник удалён."
 employee_not_found = "❌ Сотрудник не найден."
 
 add_employee_name = "👤 Введите имя нового сотрудника:"
 add_employee_position = "💼 Введите его должность:"
 add_employee_districts = "🗺 Выберите его районы:"
-employee_added = "✅ Сотрудник добавлен:\n👤 {full_name}\n💼 {position}"
+employee_added = (
+    "✅ Сотрудник добавлен:\n👤 {full_name}\n💼 {position}\n\n"
+    "При первом входе в бот через /start он выберет свою запись."
+)
 
 edit_employee_menu = "✏️ Что хотите изменить?"
 btn_edit_name = "👤 Имя"
 btn_edit_position = "💼 Должность"
-btn_edit_districts = "🗺 Районы"
 enter_new_name = "👤 Введите новое имя:"
 enter_new_position = "💼 Введите новую должность:"
 employee_updated = "✅ Данные обновлены."
@@ -148,6 +190,7 @@ reports_menu = "📊 Отчёты"
 btn_today_reports = "📅 Отчёты за сегодня"
 btn_search_reports = "🔍 Поиск"
 no_reports = "📭 Отчёты не найдены."
+no_photos = "📭 Фотографии не найдены."
 
 search_date = "📅 Введите дату (например: 05.06.2026):"
 search_employee = "👤 Выберите сотрудника:"
@@ -164,6 +207,53 @@ report_card = (
     "🗺 Местоположение: {location}"
 )
 btn_view_photos = "📸 Просмотр фото"
+btn_missing = "🚫 Не сдали отчёт"
+btn_export = "📥 Выгрузить в Excel"
+
+# ─── Экспорт в Excel ─────────────────────────────────────────────────────────
+export_choose_range = "📅 За какой период?"
+btn_range_today = "Сегодня"
+btn_range_week = "Эта неделя"
+btn_range_month = "Этот месяц"
+btn_range_custom = "Другой период"
+export_enter_range = (
+    "📅 Введите период:\n"
+    "<code>01.06.2026 - 30.06.2026</code>\n\n"
+    "Для одного дня укажите одну дату."
+)
+export_invalid_range = "❌ Неверный формат. Например: 01.06.2026 - 30.06.2026"
+export_range_too_long = "❌ Период не должен превышать {max} дней."
+export_empty = "📭 За {range} отчётов не найдено."
+export_preparing = "⏳ Файл готовится..."
+export_caption = "📊 {range} — отчётов: {count}"
+
+export_sheet_title = "Отчёты"
+col_no = "№"
+col_date = "Дата"
+col_time = "Время"
+col_employee = "Сотрудник"
+col_position = "Должность"
+col_type = "Тип"
+col_district = "Район"
+col_customer = "Заказчик"
+col_partners = "Партнёры"
+col_plots = "Участки"
+col_status = "Статус"
+col_photos = "Фото"
+col_location = "Местоположение"
+
+status_pending = "Ожидает"
+status_confirmed = "Подтверждён"
+status_rejected = "Отклонён"
+
+missing_header = "🚫 <b>{date} — не сдали отчёт: {count}</b>"
+nobody_missing = "✅ {date} — все сотрудники сдали отчёт."
+
+daily_reminder = (
+    "⏰ <b>Напоминание</b>\n\n"
+    "Вы ещё не отправили сегодняшний отчёт. Не забудьте подать данные "
+    "до конца рабочего дня."
+)
 
 # ─── Подтверждение посещаемости ──────────────────────────────────────────────
 attendance_menu = "✅ Ожидают подтверждения"
@@ -172,6 +262,10 @@ btn_approve = "✅ Подтвердить"
 btn_reject = "❌ Отклонить"
 report_approved = "✅ Отчёт подтверждён и отправлен в канал."
 report_rejected = "❌ Отчёт отклонён."
+report_not_found = "❌ Отчёт не найден."
+report_already_processed = "ℹ️ Этот отчёт уже обработан."
+report_not_approved = "❌ Отчёт не подтверждён."
+channel_send_failed = "❌ Ошибка при отправке в канал:\n<code>{error}</code>"
 
 channel_report = (
     "✅ <b>Посещаемость подтверждена</b>\n\n"
@@ -187,9 +281,10 @@ channel_report = (
 
 # ─── Смена пароля ────────────────────────────────────────────────────────────
 enter_current_password = "🔑 Введите текущий пароль:"
-enter_new_password = "🔑 Введите новый пароль:"
+enter_new_password = "🔑 Введите новый пароль (минимум {min} символов):"
 enter_confirm_password = "🔑 Повторите новый пароль:"
 passwords_mismatch = "❌ Пароли не совпадают."
+password_too_short = "❌ Пароль должен содержать минимум {min} символов."
 password_changed = "✅ Пароль успешно изменён."
 wrong_current_password = "❌ Текущий пароль неверный."
 

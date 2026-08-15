@@ -28,3 +28,7 @@ class AdminRoleStates(StatesGroup):
 class AdminReportStates(StatesGroup):
     entering_date = State()
     choosing_employee = State()
+
+
+class AdminExportStates(StatesGroup):
+    entering_range = State()

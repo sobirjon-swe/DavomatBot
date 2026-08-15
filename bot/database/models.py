@@ -1,11 +1,19 @@
 import enum
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Optional
-from sqlalchemy import (
-    Boolean, DateTime, Enum, Float, ForeignKey,
-    Integer, String, BigInteger
-)
+
+from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+def utcnow() -> datetime:
+    """Vaqt mintaqasi belgilangan hozirgi UTC vaqti.
+
+    `datetime.utcnow()` naive qiymat qaytaradi va Python 3.12 dan deprecated;
+    bazadagi barcha vaqtlar UTC va tz-aware bo'lishi uchun shu funksiya
+    ishlatiladi.
+    """
+    return datetime.now(UTC)
 
 
 class Base(DeclarativeBase):
@@ -28,13 +36,19 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    # Admin qo'lda qo'shgan hodim hali botga kirmagan bo'ladi — o'shanda NULL.
+    # Shu sababli unique cheklov NULL larni hisobga olmaydi (Postgres xatti-harakati).
+    telegram_id: Mapped[int | None] = mapped_column(
+        BigInteger, unique=True, index=True, nullable=True
+    )
     full_name: Mapped[str] = mapped_column(String(255))
     position: Mapped[str] = mapped_column(String(255))
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.employee)
     language: Mapped[str] = mapped_column(String(2), default="uz")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
 
     user_districts: Mapped[list["UserDistrict"]] = relationship(
         "UserDistrict", back_populates="user", cascade="all, delete-orphan"
@@ -89,17 +103,32 @@ class Report(Base):
     customer_name: Mapped[str] = mapped_column(String(500))
     location_lat: Mapped[float] = mapped_column(Float)
     location_lon: Mapped[float] = mapped_column(Float)
-    plots_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    plots_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
-    confirmed_by: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("users.id"), nullable=True
+    confirmed_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # Rad etilgan hisobot o'chirilmaydi — audit izi qolishi uchun belgilanadi.
+    is_rejected: Mapped[bool] = mapped_column(Boolean, default=False)
+    rejected_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    rejected_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
 
     user: Mapped["User"] = relationship("User", back_populates="reports", foreign_keys=[user_id])
     confirmer: Mapped[Optional["User"]] = relationship(
         "User", back_populates="confirmed_reports", foreign_keys=[confirmed_by]
+    )
+    rejecter: Mapped[Optional["User"]] = relationship(
+        "User", foreign_keys=[rejected_by]
     )
     district: Mapped["District"] = relationship("District", back_populates="reports")
     partners: Mapped[list["ReportPartner"]] = relationship(
@@ -137,11 +166,31 @@ class AccessPassword(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     password_hash: Mapped[str] = mapped_column(String(500))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_by: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("users.id"), nullable=True
+    created_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
 
     creator: Mapped[Optional["User"]] = relationship(
         "User", back_populates="created_passwords"
+    )
+
+
+class AccessAttempt(Base):
+    """Parolni xato kiritish urinishlari.
+
+    Ilgari bu ma'lumot xotirada saqlangani uchun bot qayta ishga tushishi
+    bilan blok bekor bo'lardi. Endi bazada saqlanadi.
+    """
+
+    __tablename__ = "access_attempts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    failed_count: Mapped[int] = mapped_column(Integer, default=0)
+    is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )

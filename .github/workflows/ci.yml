@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    name: Ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff==0.5.0
+      - run: ruff check .
+        working-directory: bot
+
+  test:
+    name: Testlar (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10 — VPS dagi tizim Python i, 3.11 — kelajakdagi yangilanish uchun
+        python-version: ["3.10", "3.11"]
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: davomat_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Haqiqiy PostgreSQL da ishlatamiz — TIMESTAMPTZ xatti-harakatini
+      # SQLite takrorlay olmaydi va vaqt mintaqasiga oid testlar
+      # o'tkazib yuborilardi.
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/davomat_test
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Bog'liqliklarni o'rnatish
+        run: pip install -r requirements-dev.txt
+        working-directory: bot
+
+      - name: Testlar
+        run: pytest -q
+        working-directory: bot
+
+  webapp:
+    name: Mini App
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: pnpm ni yoqish
+        run: corepack enable
+      - name: Bog'liqliklar
+        run: pnpm install --frozen-lockfile
+        working-directory: webapp
+      - name: Testlar
+        run: pnpm run test
+        working-directory: webapp
+
+      - name: Tiplar va build
+        # `build` ichida `tsc -b` bor, ya'ni tip xatolari ham shu yerda chiqadi
+        run: pnpm run build
+        working-directory: webapp
+
+  migrations:
+    name: Migratsiyalar
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: davomat_migr
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/davomat_migr
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+        working-directory: bot
+
+      - name: Bo'sh bazaga to'liq qo'llash
+        run: alembic upgrade head
+        working-directory: bot
+
+      - name: Orqaga qaytarish va qayta qo'llash
+        # downgrade ishlashi muhim: prodda muammo chiqsa orqaga qaytish kerak
+        run: |
+          alembic downgrade base
+          alembic upgrade head
+        working-directory: bot
+
+      - name: Model va migratsiya mos kelishini tekshirish
+        # Autogenerate hech qanday farq topmasligi kerak — topsa, demak
+        # modelga o'zgarish kiritilib, migratsiya yozilmagan.
+        run: |
+          alembic revision --autogenerate -m "ci-check" --rev-id ci_check
+          if grep -qE "^\s+op\.(add|drop|alter|create)_" alembic/versions/ci_check_ci_check.py; then
+            echo "::error::Model bilan migratsiyalar mos emas — yangi migratsiya yozing."
+            cat alembic/versions/ci_check_ci_check.py
+            exit 1
+          fi
+          echo "Model va migratsiyalar mos."
+        working-directory: bot

@@ -1,0 +1,53 @@
+# Telegram bot.
+#
+#   sudo cp deploy/davomat.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now davomat
+#
+# Loglar:  journalctl -u davomat -f
+
+[Unit]
+Description=DavomatBot - Telegram bot
+Documentation=https://github.com/sobirjon-swe/DavomatBot
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=davomat
+Group=davomat
+WorkingDirectory=/home/DavomatBot/bot
+ExecStart=/home/DavomatBot/bot/.venv/bin/python main.py
+
+# .env WorkingDirectory dan o'qiladi (python-dotenv), shuning uchun
+# EnvironmentFile kerak emas.
+Environment=PYTHONUNBUFFERED=1
+# Manba katalogi faqat o'qish uchun ochiq — .pyc yozishga urinmasin
+Environment=PYTHONDONTWRITEBYTECODE=1
+
+Restart=always
+RestartSec=5
+# Ketma-ket qulasa cheksiz aylanmasin
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=davomat
+
+# ─── Xavfsizlik ─────────────────────────────────────────────────────────────
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+[Install]
+WantedBy=multi-user.target
