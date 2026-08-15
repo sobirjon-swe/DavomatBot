@@ -256,6 +256,7 @@ CI (`.github/workflows/ci.yml`) har PR da uch ishni bajaradi:
 |---|---|
 | `Ruff` | Kod uslubi, ishlatilmagan importlar |
 | `Testlar` | Python 3.10 va 3.11 da, PostgreSQL service bilan |
+| `Mini App` | Frontend tiplari va build |
 | `Migratsiyalar` | `upgrade head` → `downgrade base` → `upgrade head`, hamda modellar bilan migratsiyalar mos kelishi |
 
 Oxirgi tekshiruv muhim: modelga ustun qo'shib, migratsiya yozilmasa CI
@@ -288,9 +289,24 @@ shuning uchun inline tugmalar ham himoyalangan.
 
 ## Deploy
 
-`main` branchiga push qilinganda `.github/workflows/deploy.yml` VPS'ga ulanib
-kodni yangilaydi, bog'liqliklarni o'rnatadi, `alembic upgrade head` bajaradi va
-`davomat` xizmatini qayta ishga tushiradi. Har qadam xatosida deploy to'xtaydi,
-oxirida xizmat haqiqatan ishlayotgani tekshiriladi.
+Birinchi marta o'rnatish — **[deploy/README.md](deploy/README.md)**: systemd
+xizmatlari, nginx, sertifikat, ombor kanali va Alembic ni mavjud bazaga ulash.
+
+Keyin `main` branchiga push qilinganda hammasi avtomatik ketadi
+(`.github/workflows/deploy.yml`):
+
+1. Mini App GitHub Actions da yig'iladi (VPS ga Node kerak emas)
+2. `dist/` → `/var/www/davomat` ga yuklanadi
+3. Backend yangilanadi, `alembic upgrade head` bajariladi
+4. `davomat` va `davomat-api` xizmatlari qayta ishga tushadi
+5. Ikkalasi ishlayotgani va `/api/health` javob berayotgani tekshiriladi
+
+Har qadam xatosida deploy to'xtaydi.
+
+| Fayl | Nima |
+|---|---|
+| `deploy/davomat.service` | Bot xizmati |
+| `deploy/davomat-api.service` | Mini App API xizmati |
+| `deploy/nginx-davomat.conf` | nginx: statik fayllar + `/api/` proksi |
 
 GitHub secrets: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`.

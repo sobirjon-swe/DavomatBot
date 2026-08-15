@@ -1,0 +1,55 @@
+# Mini App uchun HTTP API.
+#
+#   sudo cp deploy/davomat-api.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now davomat-api
+#
+# Loglar:  journalctl -u davomat-api -f
+#
+# Bot bilan ataylab alohida xizmat: biri qulasa ikkinchisi ishlab turadi
+# va ularni alohida qayta ishga tushirish mumkin.
+
+[Unit]
+Description=DavomatBot - Mini App API
+Documentation=https://github.com/sobirjon-swe/DavomatBot
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=davomat
+Group=davomat
+WorkingDirectory=/home/DavomatBot/bot
+ExecStart=/home/DavomatBot/bot/.venv/bin/python api_server.py
+
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=davomat-api
+
+# ─── Xavfsizlik ─────────────────────────────────────────────────────────────
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+# API faqat localhost da tinglaydi (API_HOST=127.0.0.1) — tashqariga
+# nginx chiqaradi. Shu sababli 8000-portni tashqariga ochish shart emas.
+
+[Install]
+WantedBy=multi-user.target
