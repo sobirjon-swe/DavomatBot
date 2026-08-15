@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  # Actions oynasidan qo'lda ishga tushirish uchun — server sozlangandan
+  # keyin bo'sh commit qilmasdan qayta urinib ko'rish mumkin.
+  workflow_dispatch:
 
 # Ikki deploy bir vaqtda ketmasin — migratsiya o'rtasida ikkinchisi
 # boshlansa baza noaniq holatda qolishi mumkin.

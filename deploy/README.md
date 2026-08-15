@@ -1,5 +1,84 @@
 # Serverga o'rnatish
 
+> **Yangi, bo'sh server bo'lsa** — avval quyidagi "Noldan ko'tarish"
+> bo'limini bajaring. Undan keyingi bo'limlar allaqachon ishlab turgan
+> serverni yangilash uchun.
+
+---
+
+## Noldan ko'tarish
+
+Deploy skripti repo `/home/DavomatBot/bot` da turadi va `.venv` mavjud deb
+hisoblaydi. Yangi serverda ularni bir marta qo'lda yaratish kerak.
+
+```bash
+# 1. Tizim paketlari
+sudo apt update
+sudo apt install -y python3.11 python3.11-venv git postgresql nginx certbot python3-certbot-nginx
+
+# 2. Baza
+sudo -u postgres psql -c "CREATE USER davomat WITH PASSWORD 'kuchli-parol';"
+sudo -u postgres psql -c "CREATE DATABASE davomat_db OWNER davomat;"
+
+# 3. Repo
+sudo mkdir -p /home/DavomatBot
+sudo chown $USER:$USER /home/DavomatBot
+git clone https://github.com/sobirjon-swe/DavomatBot.git /home/DavomatBot
+cd /home/DavomatBot/bot
+
+# 4. Virtual muhit
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# 5. Sozlamalar
+cp .env.example .env
+nano .env        # BOT_TOKEN, DATABASE_URL, SUPERADMIN_ID, CHANNEL_ID
+chmod 600 .env
+```
+
+### Alembic — bu yerda ehtiyot bo'ling
+
+Ikki holat bor va ular bir-biriga o'xshamaydi:
+
+| Holat | Buyruq |
+|---|---|
+| **Yangi, bo'sh baza** | `alembic upgrade head` |
+| Eski serverdan `pg_dump` bilan ko'chirilgan ma'lumot | `alembic stamp 0001` → `alembic upgrade head` |
+
+Bo'sh bazada `stamp 0001` **qilmang**: u jadvallarni yaratmasdan
+"yaratilgan" deb belgilab qo'yadi va bot bo'sh bazaga urilib xato beradi.
+
+Ma'lumotni ko'chirish:
+
+```bash
+# eski serverda
+pg_dump -Fc davomat_db > davomat.dump
+# yangi serverda
+pg_restore -d davomat_db davomat.dump
+alembic stamp 0001 && alembic upgrade head
+```
+
+### Tekshirish
+
+```bash
+python main.py        # Ctrl+C bilan to'xtating
+```
+
+Bot ishga tushsa, quyidagi bo'limlarga o'ting: foydalanuvchi, systemd,
+nginx, sertifikat.
+
+### GitHub secrets
+
+Actions → Secrets: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`.
+`VPS_USER` ning ochiq kaliti serverdagi `~/.ssh/authorized_keys` da
+bo'lishi shart, aks holda deploy SSH bosqichida to'xtaydi.
+
+Tekshirish: o'z mashinangizdan `ssh -i <kalit> VPS_USER@VPS_HOST "echo ok"`.
+
+---
+
+
 Ubuntu 22.04 uchun. Domen o'rniga `davomat.example.uz` yozilgan — o'zingiznikiga
 almashtiring.
 
