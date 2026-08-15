@@ -1,0 +1,60 @@
+name: Bootstrap server
+
+# Serverni noldan tayyorlaydi: paketlar, PostgreSQL, repo, venv, .env,
+# migratsiyalar va systemd xizmati.
+#
+# Faqat qo'lda ishga tushiriladi. Qayta-qayta bosish xavfsiz: skript
+# mavjud narsalarga tegmaydi.
+#
+# Kerakli secrets:
+#   VPS_HOST, VPS_USER, VPS_SSH_KEY                    — ulanish
+#   BOT_TOKEN, SUPERADMIN_ID, CHANNEL_ID, DB_PASSWORD  — .env uchun
+#
+# .env allaqachon mavjud bo'lsa unga tegilmaydi, ya'ni bu qiymatlar
+# faqat birinchi marta ishlatiladi.
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Qaysi branch o'rnatilsin"
+        default: main
+        required: true
+
+jobs:
+  bootstrap:
+    name: Serverni tayyorlash
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skriptni serverga yuborish
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: deploy/bootstrap.sh
+          target: /tmp/davomat-bootstrap
+          strip_components: 1
+
+      - name: O'rnatish
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          # Maxfiy qiymatlar buyruq satrida emas, muhit o'zgaruvchilarida
+          # uzatiladi — shunda ular `ps` da ham ko'rinmaydi.
+          envs: BOT_TOKEN,SUPERADMIN_ID,CHANNEL_ID,DB_PASSWORD,BRANCH
+          script: |
+            set -euo pipefail
+            bash /tmp/davomat-bootstrap/bootstrap.sh
+            rm -f /tmp/davomat-bootstrap/bootstrap.sh
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          SUPERADMIN_ID: ${{ secrets.SUPERADMIN_ID }}
+          CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          BRANCH: ${{ inputs.branch }}
