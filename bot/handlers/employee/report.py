@@ -1,50 +1,54 @@
+import logging
 from datetime import datetime
-from aiogram import Router, F, Bot
-from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery
+from typing import Optional
 
-from database.session import AsyncSessionLocal
+from aiogram import Bot, F, Router
+from aiogram.fsm.context import FSMContext
+from aiogram.types import CallbackQuery, Message
+
+import config
 from database.crud import (
-    get_user_by_telegram_id, get_all_active_employees,
-    get_all_districts, create_report, add_report_partners,
-    add_report_photos, get_report_by_id
+    add_report_partners, add_report_photos, create_report, get_all_active_employees,
+    get_all_districts, get_district_by_id, get_districts_by_ids, get_report_by_id,
+    get_user_district_ids
 )
-from database.models import ReportType
+from database.models import ReportType, User
+from database.session import AsyncSessionLocal
 from keyboards.employee_kb import (
-    report_type_kb, report_subtype_kb, partners_kb, single_district_kb,
-    location_kb, photos_kb, plots_kb, confirm_report_kb, main_menu_kb,
-    remove_kb
+    confirm_report_kb, location_kb, main_menu_kb, partners_kb, photos_kb,
+    plots_kb, remove_kb, report_subtype_kb, report_type_kb, single_district_kb
 )
 from locales import t
 from states.report import ReportStates
 from utils.formatters import (
-    format_report_type, format_partners, format_datetime, format_district_name
+    TASHKENT_TZ, esc, format_location_url, format_report_type
 )
+from utils.messages import text_of
 from utils.notifications import notify_partners
 
+logger = logging.getLogger(__name__)
 router = Router()
 
 
 @router.message(F.text.in_(["📋 Ma'lumot berish", "📋 Подать отчёт"]))
-async def start_report(message: Message, state: FSMContext):
-    async with AsyncSessionLocal() as session:
-        user = await get_user_by_telegram_id(session, message.from_user.id)
-    if not user:
+async def start_report(
+    message: Message, state: FSMContext, db_user: Optional[User] = None
+):
+    if not db_user or not db_user.is_active:
         return
 
-    lang = user.language
-    await message.answer(t(lang, "choose_report_type"), reply_markup=report_type_kb(lang))
+    lang = db_user.language
     await state.set_state(ReportStates.choosing_type)
-    await state.update_data(user_id=user.id, lang=lang)
+    await state.update_data(user_id=db_user.id, lang=lang)
+    await message.answer(t(lang, "choose_report_type"), reply_markup=report_type_kb(lang))
 
 
 @router.callback_query(ReportStates.choosing_type, F.data.startswith("report_type:"))
 async def choose_report_type(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")
-    rtype = callback.data.split(":")[1]
 
-    if rtype == "laboratory":
+    if callback.data.split(":")[1] == "laboratory":
         await state.update_data(report_type=ReportType.laboratory)
         await _show_partners(callback, state, lang)
     else:
@@ -68,18 +72,17 @@ async def choose_report_subtype(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
+async def _load_partner_candidates(exclude_user_id: int) -> list[User]:
+    async with AsyncSessionLocal() as session:
+        employees = await get_all_active_employees(session)
+    return [e for e in employees if e.id != exclude_user_id]
+
+
 async def _show_partners(callback: CallbackQuery, state: FSMContext, lang: str):
     data = await state.get_data()
-    user_id = data.get("user_id")
+    employees = await _load_partner_candidates(data.get("user_id"))
 
-    async with AsyncSessionLocal() as session:
-        all_employees = await get_all_active_employees(session)
-
-    employees = [e for e in all_employees if e.id != user_id]
-    await state.update_data(selected_partner_ids=[], all_employees=[
-        {"id": e.id, "full_name": e.full_name} for e in employees
-    ])
-
+    await state.update_data(selected_partner_ids=[])
     await callback.message.edit_text(
         t(lang, "choose_partners"),
         reply_markup=partners_kb(lang, employees, []),
@@ -93,7 +96,14 @@ async def toggle_partner(callback: CallbackQuery, state: FSMContext):
     lang = data.get("lang", "uz")
     action = callback.data.split(":")[1]
 
-    if action in ("none", "done"):
+    if action == "none":
+        # "Sherik yo'q" avval belgilanganlarni ham bekor qiladi.
+        await state.update_data(selected_partner_ids=[])
+        await _show_districts(callback, state, lang)
+        await callback.answer()
+        return
+
+    if action == "done":
         await _show_districts(callback, state, lang)
         await callback.answer()
         return
@@ -106,11 +116,7 @@ async def toggle_partner(callback: CallbackQuery, state: FSMContext):
         selected.append(partner_id)
     await state.update_data(selected_partner_ids=selected)
 
-    async with AsyncSessionLocal() as session:
-        employees = await get_all_active_employees(session)
-    user_id = data.get("user_id")
-    employees = [e for e in employees if e.id != user_id]
-
+    employees = await _load_partner_candidates(data.get("user_id"))
     await callback.message.edit_reply_markup(
         reply_markup=partners_kb(lang, employees, selected)
     )
@@ -119,42 +125,30 @@ async def toggle_partner(callback: CallbackQuery, state: FSMContext):
 
 async def _show_districts(callback: CallbackQuery, state: FSMContext, lang: str):
     data = await state.get_data()
-    user_id = data.get("user_id")
 
     async with AsyncSessionLocal() as session:
-        user = await get_user_by_telegram_id(
-            session, callback.from_user.id
-        )
-        user_district_ids = [ud.district_id for ud in user.user_districts]
-        all_districts = await get_all_active_districts_for_user(session, user_district_ids)
+        district_ids = await get_user_district_ids(session, data.get("user_id"))
+        districts = await get_districts_by_ids(session, district_ids)
+        # Hodimga tuman biriktirilmagan bo'lsa, tugmasiz ekran chiqmasligi
+        # uchun to'liq ro'yxat ko'rsatiladi.
+        if not districts:
+            districts = await get_all_districts(session)
 
-    await state.update_data(user_district_ids=user_district_ids)
     await callback.message.edit_text(
         t(lang, "choose_district"),
-        reply_markup=single_district_kb(lang, all_districts),
+        reply_markup=single_district_kb(lang, districts),
     )
     await state.set_state(ReportStates.choosing_district)
 
 
-async def get_all_active_districts_for_user(session, district_ids: list):
-    from sqlalchemy import select
-    from database.models import District
-    result = await session.execute(
-        select(District).where(District.id.in_(district_ids)).order_by(District.id)
-    )
-    return list(result.scalars().all())
-
-
 @router.callback_query(ReportStates.choosing_district, F.data == "single_dist:other")
 async def choose_other_district(callback: CallbackQuery, state: FSMContext):
+    """Biriktirilmagan hududda ish bo'lsa, to'liq ro'yxatni ko'rsatadi."""
     data = await state.get_data()
     lang = data.get("lang", "uz")
 
     async with AsyncSessionLocal() as session:
-        from sqlalchemy import select
-        from database.models import District
-        result = await session.execute(select(District).order_by(District.id))
-        all_districts = list(result.scalars().all())
+        all_districts = await get_all_districts(session)
 
     await callback.message.edit_text(
         t(lang, "choose_district"),
@@ -167,9 +161,8 @@ async def choose_other_district(callback: CallbackQuery, state: FSMContext):
 async def choose_district(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")
-    district_id = int(callback.data.split(":")[1])
-    await state.update_data(district_id=district_id)
 
+    await state.update_data(district_id=int(callback.data.split(":")[1]))
     await callback.message.edit_text(t(lang, "enter_customer"))
     await state.set_state(ReportStates.entering_customer)
     await callback.answer()
@@ -179,7 +172,13 @@ async def choose_district(callback: CallbackQuery, state: FSMContext):
 async def enter_customer(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")
-    await state.update_data(customer_name=message.text.strip())
+
+    customer = text_of(message)
+    if not customer:
+        await message.answer(t(lang, "text_expected"))
+        return
+
+    await state.update_data(customer_name=customer)
     await message.answer(t(lang, "send_location"), reply_markup=location_kb(lang))
     await state.set_state(ReportStates.sending_location)
 
@@ -188,16 +187,24 @@ async def enter_customer(message: Message, state: FSMContext):
 async def receive_location(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")
+
     await state.update_data(
         location_lat=message.location.latitude,
         location_lon=message.location.longitude,
         photo_file_ids=[],
     )
     await message.answer(
-        t(lang, "send_photos"),
+        t(lang, "send_photos",
+          min=config.MIN_REPORT_PHOTOS, max=config.MAX_REPORT_PHOTOS),
         reply_markup=remove_kb(),
     )
     await state.set_state(ReportStates.sending_photos)
+
+
+@router.message(ReportStates.sending_location)
+async def location_expected(message: Message, state: FSMContext):
+    data = await state.get_data()
+    await message.answer(t(data.get("lang", "uz"), "location_expected"))
 
 
 @router.message(ReportStates.sending_photos, F.photo)
@@ -206,18 +213,17 @@ async def receive_photo(message: Message, state: FSMContext):
     lang = data.get("lang", "uz")
     photo_ids = data.get("photo_file_ids", [])
 
-    if len(photo_ids) >= 7:
-        await message.answer(t(lang, "min_photos_required"))
+    if len(photo_ids) >= config.MAX_REPORT_PHOTOS:
+        await message.answer(t(lang, "max_photos_reached", max=config.MAX_REPORT_PHOTOS))
         return
 
-    largest = message.photo[-1]
-    photo_ids.append(largest.file_id)
+    photo_ids.append(message.photo[-1].file_id)
     await state.update_data(photo_file_ids=photo_ids)
-    count = len(photo_ids)
 
     await message.answer(
-        t(lang, "photos_progress", count=count),
-        reply_markup=photos_kb(lang, count),
+        t(lang, "photos_progress",
+          count=len(photo_ids), min=config.MIN_REPORT_PHOTOS),
+        reply_markup=photos_kb(lang, len(photo_ids)),
     )
 
 
@@ -225,14 +231,15 @@ async def receive_photo(message: Message, state: FSMContext):
 async def photos_done(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")
-    count = len(data.get("photo_file_ids", []))
 
-    if count < 3:
-        await callback.answer(t(lang, "min_photos_required"), show_alert=True)
+    if len(data.get("photo_file_ids", [])) < config.MIN_REPORT_PHOTOS:
+        await callback.answer(
+            t(lang, "min_photos_required", min=config.MIN_REPORT_PHOTOS),
+            show_alert=True,
+        )
         return
 
-    report_type = data.get("report_type")
-    if report_type == ReportType.laboratory:
+    if data.get("report_type") == ReportType.laboratory:
         await callback.message.edit_text(
             t(lang, "enter_plots_count"),
             reply_markup=plots_kb(lang),
@@ -249,12 +256,13 @@ async def photos_done(callback: CallbackQuery, state: FSMContext):
 async def enter_plots_count(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")
-    try:
-        plots = int(message.text.strip())
-        await state.update_data(plots_count=plots)
-    except ValueError:
-        await message.answer(t(lang, "error_generic"))
+
+    raw = text_of(message)
+    if raw is None or not raw.isdigit():
+        await message.answer(t(lang, "invalid_number"))
         return
+
+    await state.update_data(plots_count=int(raw))
     await _show_preview(message, state, lang)
 
 
@@ -262,6 +270,7 @@ async def enter_plots_count(message: Message, state: FSMContext):
 async def skip_plots(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")
+
     await state.update_data(plots_count=None)
     await _show_preview(callback.message, state, lang)
     await callback.answer()
@@ -269,50 +278,34 @@ async def skip_plots(callback: CallbackQuery, state: FSMContext):
 
 async def _show_preview(message: Message, state: FSMContext, lang: str):
     data = await state.get_data()
-    report_type = data.get("report_type")
-    district_id = data.get("district_id")
-    customer_name = data.get("customer_name")
     partner_ids = data.get("selected_partner_ids", [])
-    photo_ids = data.get("photo_file_ids", [])
-    plots_count = data.get("plots_count")
 
     async with AsyncSessionLocal() as session:
-        from database.models import District
-        from sqlalchemy import select
-        district = (await session.execute(
-            select(District).where(District.id == district_id)
-        )).scalar_one_or_none()
+        district = await get_district_by_id(session, data.get("district_id"))
+        employees = await get_all_active_employees(session)
 
-        all_employees = await get_all_active_employees(session)
-        partner_names = [e.full_name for e in all_employees if e.id in partner_ids]
-
+    partner_names = [esc(e.full_name) for e in employees if e.id in partner_ids]
     district_name = district.name_uz if lang == "uz" else district.name_ru
-    type_text = format_report_type(lang, report_type)
-    partners_text = ", ".join(partner_names) if partner_names else "—"
-    now = datetime.now().strftime("%d.%m.%Y | %H:%M")
 
-    from utils.formatters import format_location_url
-    location_lat = data.get("location_lat")
-    location_lon = data.get("location_lon")
-    location_str = format_location_url(location_lat, location_lon) if location_lat and location_lon else "—"
+    lat, lon = data.get("location_lat"), data.get("location_lon")
+    location_str = format_location_url(lat, lon) if lat is not None else "—"
 
     preview = t(
         lang, "report_preview",
-        report_type=type_text,
-        district=district_name,
-        customer=customer_name,
-        partners=partners_text,
-        photos_count=len(photo_ids),
-        date=now,
+        report_type=format_report_type(lang, data.get("report_type")),
+        district=esc(district_name),
+        customer=esc(data.get("customer_name")),
+        partners=", ".join(partner_names) if partner_names else "—",
+        photos_count=len(data.get("photo_file_ids", [])),
+        date=datetime.now(TASHKENT_TZ).strftime("%d.%m.%Y | %H:%M"),
         location=location_str,
     )
+    plots_count = data.get("plots_count")
     if plots_count is not None:
         preview += t(lang, "report_preview_plots", plots_count=plots_count)
 
     await message.answer(
-        preview,
-        parse_mode="HTML",
-        reply_markup=confirm_report_kb(lang),
+        preview, parse_mode="HTML", reply_markup=confirm_report_kb(lang)
     )
     await state.set_state(ReportStates.confirming)
 
@@ -322,9 +315,12 @@ async def refill_report(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")
     user_id = data.get("user_id")
+
     await state.clear()
     await state.update_data(user_id=user_id, lang=lang)
-    await callback.message.edit_text(t(lang, "choose_report_type"), reply_markup=report_type_kb(lang))
+    await callback.message.edit_text(
+        t(lang, "choose_report_type"), reply_markup=report_type_kb(lang)
+    )
     await state.set_state(ReportStates.choosing_type)
     await callback.answer()
 
@@ -345,25 +341,16 @@ async def submit_report(callback: CallbackQuery, state: FSMContext, bot: Bot):
             location_lon=data["location_lon"],
             plots_count=data.get("plots_count"),
         )
-        partner_ids = data.get("selected_partner_ids", [])
-        await add_report_partners(session, report.id, partner_ids)
+        await add_report_partners(session, report.id, data.get("selected_partner_ids", []))
         await add_report_photos(session, report.id, data.get("photo_file_ids", []))
         await session.commit()
         report_full = await get_report_by_id(session, report.id)
 
+    logger.info("Yangi hisobot #%s, hodim id=%s", report.id, data["user_id"])
+
     await callback.message.edit_text(t(lang, "report_submitted"))
+    await notify_partners(bot, report_full, lang)
+    await callback.message.answer(t(lang, "main_menu"), reply_markup=main_menu_kb(lang))
 
-    async with AsyncSessionLocal() as session:
-        report_full = await get_report_by_id(session, report.id)
-        await notify_partners(bot, report_full, lang)
-
-    from keyboards.employee_kb import main_menu_kb
-    async with AsyncSessionLocal() as session:
-        user = await get_user_by_telegram_id(session, callback.from_user.id)
-
-    await callback.message.answer(
-        t(lang, "main_menu"),
-        reply_markup=main_menu_kb(lang),
-    )
     await state.clear()
     await callback.answer()

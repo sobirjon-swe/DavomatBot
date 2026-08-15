@@ -1,45 +1,54 @@
-from aiogram import Router, F, Bot
-from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, CallbackQuery
+import logging
+from typing import Optional
 
+from aiogram import Bot, F, Router
+from aiogram.fsm.context import FSMContext
+from aiogram.types import CallbackQuery, Message
+
+from database.crud import get_all_users, get_user_by_id, update_user
+from database.models import User, UserRole
 from database.session import AsyncSessionLocal
-from database.crud import (
-    get_user_by_telegram_id, get_all_users, get_user_by_id, update_user
-)
-from database.models import UserRole
+from filters.roles import IsSuperAdmin
 from keyboards.admin_kb import employees_list_kb, role_choice_kb
 from locales import t
 from states.admin import AdminRoleStates
+from utils.notifications import notify_user
+
+logger = logging.getLogger(__name__)
 
 router = Router()
+# Rol berish faqat superadminga — callback tugmalari ham shu filtr ostida.
+router.message.filter(IsSuperAdmin())
+router.callback_query.filter(IsSuperAdmin())
 
 
 @router.message(F.text.in_(["👑 Rolni o'zgartirish", "👑 Изменить роли"]))
-async def roles_menu(message: Message, state: FSMContext):
-    async with AsyncSessionLocal() as session:
-        user = await get_user_by_telegram_id(session, message.from_user.id)
-    if not user or user.role != UserRole.superadmin:
-        await message.answer(t(user.language if user else "uz", "not_authorized"))
-        return
+async def roles_menu(
+    message: Message, state: FSMContext, db_user: Optional[User] = None
+):
+    lang = db_user.language
 
-    lang = user.language
     async with AsyncSessionLocal() as session:
         all_users = await get_all_users(session)
 
-    non_superadmins = [u for u in all_users if u.role != UserRole.superadmin]
+    candidates = [u for u in all_users if u.role != UserRole.superadmin]
+    if not candidates:
+        await message.answer(t(lang, "no_employees"))
+        return
+
     await state.update_data(lang=lang)
     await message.answer(
         t(lang, "choose_employee_for_role"),
-        reply_markup=employees_list_kb(lang, non_superadmins),
+        reply_markup=employees_list_kb(lang, candidates),
     )
     await state.set_state(AdminRoleStates.choosing_employee)
 
 
 @router.callback_query(AdminRoleStates.choosing_employee, F.data.startswith("sel_emp:"))
 async def choose_employee_for_role(callback: CallbackQuery, state: FSMContext):
-    user_id = int(callback.data.split(":")[1])
     data = await state.get_data()
     lang = data.get("lang", "uz")
+    user_id = int(callback.data.split(":")[1])
 
     async with AsyncSessionLocal() as session:
         target = await get_user_by_id(session, user_id)
@@ -81,16 +90,18 @@ async def choose_new_role(callback: CallbackQuery, state: FSMContext, bot: Bot):
         await callback.answer(t(lang, "employee_not_found"), show_alert=True)
         return
 
-    notify_text = t(lang, "admin_assigned_notify") if new_role == UserRole.admin else t(lang, "admin_removed_notify")
-    try:
-        await bot.send_message(chat_id=target.telegram_id, text=notify_text)
-    except Exception:
-        pass
+    logger.info("Hodim id=%s roli %s ga o'zgartirildi", target.id, new_role.value)
+
+    if target.telegram_id is not None:
+        await notify_user(
+            bot, target.telegram_id,
+            t(target.language,
+              "admin_assigned_notify" if new_role == UserRole.admin
+              else "admin_removed_notify"),
+        )
 
     await callback.message.edit_text(
-        t(lang, "role_updated",
-          full_name=target.full_name,
-          new_role=new_role.value)
+        t(lang, "role_updated", full_name=target.full_name, new_role=new_role.value)
     )
     await state.clear()
     await callback.answer()

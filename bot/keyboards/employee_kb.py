@@ -1,8 +1,9 @@
 from aiogram.types import (
-    InlineKeyboardMarkup, InlineKeyboardButton,
-    ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+    InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
+
+import config
 from locales import t
 
 
@@ -11,6 +12,19 @@ def language_kb() -> InlineKeyboardMarkup:
     builder.button(text="🇺🇿 O'zbek", callback_data="lang:uz")
     builder.button(text="🇷🇺 Русский", callback_data="lang:ru")
     builder.adjust(2)
+    return builder.as_markup()
+
+
+def link_accounts_kb(lang: str, users: list) -> InlineKeyboardMarkup:
+    """Admin oldindan qo'shgan, hali egasi bo'lmagan hodim yozuvlari."""
+    builder = InlineKeyboardBuilder()
+    for user in users:
+        builder.button(
+            text=f"{user.full_name} — {user.position}",
+            callback_data=f"link:{user.id}",
+        )
+    builder.button(text=t(lang, "btn_not_in_list"), callback_data="link:new")
+    builder.adjust(1)
     return builder.as_markup()
 
 
@@ -86,8 +100,9 @@ def single_district_kb(lang: str, districts: list, show_other: bool = True) -> I
         name = district.name_uz if lang == "uz" else district.name_ru
         builder.button(text=name, callback_data=f"single_dist:{district.id}")
     if show_other:
-        other_text = "🔍 Boshqa hudud" if lang == "uz" else "🔍 Другой район"
-        builder.button(text=other_text, callback_data="single_dist:other")
+        builder.button(
+            text=t(lang, "btn_other_district"), callback_data="single_dist:other"
+        )
     builder.adjust(2)
     return builder.as_markup()
 
@@ -100,8 +115,9 @@ def location_kb(lang: str) -> ReplyKeyboardMarkup:
 
 
 def photos_kb(lang: str, count: int) -> InlineKeyboardMarkup:
+    """Yetarli rasm yuborilgandagina "Tayyor" tugmasi ko'rsatiladi."""
     builder = InlineKeyboardBuilder()
-    if count >= 3:
+    if count >= config.MIN_REPORT_PHOTOS:
         builder.button(text=t(lang, "btn_done"), callback_data="photos:done")
     builder.adjust(1)
     return builder.as_markup()

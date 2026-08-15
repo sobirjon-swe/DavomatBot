@@ -17,8 +17,16 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            set -euo pipefail
             cd /home/DavomatBot/bot
             git pull origin main
             source .venv/bin/activate
             pip install -r requirements.txt
+            # Sxema o'zgarishlari endi Alembic orqali qo'llanadi.
+            alembic upgrade head
             systemctl restart davomat
+            # Restart muvaffaqiyatli bo'lganini tekshiramiz, aks holda
+            # deploy yashil ko'rinib, bot esa o'chiq turardi.
+            sleep 5
+            systemctl is-active --quiet davomat
+            echo "Deploy tugadi, xizmat ishlayapti."

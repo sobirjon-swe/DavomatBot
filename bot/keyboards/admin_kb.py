@@ -32,18 +32,39 @@ def employees_section_kb(lang: str) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def employee_actions_kb(lang: str, user_id: int, is_superadmin: bool = False) -> InlineKeyboardMarkup:
+def employee_actions_kb(
+    lang: str,
+    user_id: int,
+    is_superadmin: bool = False,
+    is_active: bool = True,
+) -> InlineKeyboardMarkup:
+    """Hodim kartochkasi tugmalari.
+
+    Faolsizlantirish/tiklash faqat superadminga ko'rsatiladi — ilgari
+    `is_superadmin` qabul qilinardi-yu, e'tiborga olinmasdi.
+    """
     builder = InlineKeyboardBuilder()
     builder.button(text=t(lang, "btn_edit"), callback_data=f"emp_edit:{user_id}")
-    builder.button(text=t(lang, "btn_delete"), callback_data=f"emp_del:{user_id}")
+    if is_superadmin:
+        if is_active:
+            builder.button(
+                text=t(lang, "btn_deactivate"), callback_data=f"emp_off:{user_id}"
+            )
+        else:
+            builder.button(
+                text=t(lang, "btn_activate"), callback_data=f"emp_on:{user_id}"
+            )
     builder.adjust(2)
     return builder.as_markup()
 
 
-def confirm_delete_kb(lang: str, user_id: int) -> InlineKeyboardMarkup:
+def confirm_deactivate_kb(lang: str, user_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text=t(lang, "btn_yes_delete"), callback_data=f"emp_del_confirm:{user_id}")
-    builder.button(text=t(lang, "btn_cancel"), callback_data="emp_del_cancel")
+    builder.button(
+        text=t(lang, "btn_yes_deactivate"),
+        callback_data=f"emp_off_confirm:{user_id}",
+    )
+    builder.button(text=t(lang, "btn_cancel"), callback_data="emp_off_cancel")
     builder.adjust(2)
     return builder.as_markup()
 

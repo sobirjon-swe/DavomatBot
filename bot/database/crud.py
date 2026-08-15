@@ -1,14 +1,37 @@
-from datetime import datetime, date
+import asyncio
+from datetime import date, datetime, time, timedelta
 from typing import Optional
+from zoneinfo import ZoneInfo
+
 import bcrypt
-from sqlalchemy import select, and_, or_
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from config import TIMEZONE
 from database.models import (
-    User, District, UserDistrict, Report, ReportPartner,
-    ReportPhoto, AccessPassword, UserRole, ReportType
+    AccessAttempt, AccessPassword, District, Report, ReportPartner,
+    ReportPhoto, User, UserDistrict, UserRole, ReportType, utcnow
 )
+
+LOCAL_TZ = ZoneInfo(TIMEZONE)
+
+
+def local_today() -> date:
+    """Mahalliy (Toshkent) vaqt bo'yicha bugungi sana."""
+    return datetime.now(LOCAL_TZ).date()
+
+
+def _day_bounds(day: date) -> tuple[datetime, datetime]:
+    """Mahalliy kunning boshi va keyingi kun boshi (yarim ochiq oraliq).
+
+    Bazada vaqtlar UTC da saqlanadi, shuning uchun oraliq mahalliy kun
+    chegarasidan hisoblanib, taqqoslash uchun tz-aware qoldiriladi.
+    `between` o'rniga `>= start, < end` ishlatiladi — aks holda kun
+    oxiridagi soniyaning kasr qismi tushib qolardi.
+    """
+    start = datetime.combine(day, time.min, tzinfo=LOCAL_TZ)
+    return start, start + timedelta(days=1)
 
 
 # ─── Users ─────────────────────────────────────────────────────────────────
@@ -37,12 +60,17 @@ async def get_user_by_id(session: AsyncSession, user_id: int) -> Optional[User]:
 
 async def create_user(
     session: AsyncSession,
-    telegram_id: int,
     full_name: str,
     position: str,
     language: str,
+    telegram_id: Optional[int] = None,
     role: UserRole = UserRole.employee,
 ) -> User:
+    """Yangi hodim yaratadi.
+
+    `telegram_id` admin qo'lda qo'shgan hodim uchun None bo'ladi — u botga
+    birinchi marta kirganda `link_telegram_account` orqali bog'lanadi.
+    """
     user = User(
         telegram_id=telegram_id,
         full_name=full_name,
@@ -71,6 +99,34 @@ async def update_user(
     return user
 
 
+async def get_unlinked_users(session: AsyncSession) -> list[User]:
+    """Admin qo'shgan, lekin hali botga kirmagan hodimlar."""
+    result = await session.execute(
+        select(User)
+        .where(User.telegram_id.is_(None), User.is_active.is_(True))
+        .order_by(User.full_name)
+    )
+    return list(result.scalars().all())
+
+
+async def link_telegram_account(
+    session: AsyncSession, user_id: int, telegram_id: int, language: str
+) -> Optional[User]:
+    """Oldindan yaratilgan hodim yozuvini Telegram hisobiga bog'laydi.
+
+    Yozuv allaqachon band bo'lsa None qaytaradi — bu ikki kishi bitta
+    hodimni tanlab qo'yishining oldini oladi.
+    """
+    user = await get_user_by_id(session, user_id)
+    if not user or user.telegram_id is not None:
+        return None
+    user.telegram_id = telegram_id
+    user.language = language
+    await session.commit()
+    await session.refresh(user)
+    return user
+
+
 async def get_all_active_employees(session: AsyncSession) -> list[User]:
     result = await session.execute(
         select(User)
@@ -94,19 +150,38 @@ async def get_all_users(session: AsyncSession) -> list[User]:
     return list(result.scalars().all())
 
 
-async def delete_user(session: AsyncSession, user_id: int) -> bool:
+async def set_user_active(
+    session: AsyncSession, user_id: int, is_active: bool
+) -> Optional[User]:
+    """Hodimni faolsizlantiradi yoki tiklaydi.
+
+    Yozuv o'chirilmaydi: `users` ni o'chirish `reports` ni ham kaskad
+    o'chirib yuborar va davomat tarixi yo'qolardi.
+    """
     user = await get_user_by_id(session, user_id)
     if not user:
-        return False
-    await session.delete(user)
+        return None
+    user.is_active = is_active
     await session.commit()
-    return True
+    await session.refresh(user)
+    return user
 
 
 # ─── Districts ──────────────────────────────────────────────────────────────
 
 async def get_all_districts(session: AsyncSession) -> list[District]:
     result = await session.execute(select(District).order_by(District.name_uz))
+    return list(result.scalars().all())
+
+
+async def get_districts_by_ids(
+    session: AsyncSession, district_ids: list[int]
+) -> list[District]:
+    if not district_ids:
+        return []
+    result = await session.execute(
+        select(District).where(District.id.in_(district_ids)).order_by(District.name_uz)
+    )
     return list(result.scalars().all())
 
 
@@ -193,12 +268,10 @@ async def get_report_by_id(session: AsyncSession, report_id: int) -> Optional[Re
 
 
 async def get_today_reports(session: AsyncSession) -> list[Report]:
-    today = date.today()
-    start = datetime(today.year, today.month, today.day)
-    end = datetime(today.year, today.month, today.day, 23, 59, 59)
+    start, end = _day_bounds(local_today())
     result = await session.execute(
         select(Report)
-        .where(Report.created_at.between(start, end))
+        .where(Report.created_at >= start, Report.created_at < end)
         .options(
             selectinload(Report.user),
             selectinload(Report.district),
@@ -213,15 +286,15 @@ async def get_today_reports(session: AsyncSession) -> list[Report]:
 async def get_reports_by_date_and_user(
     session: AsyncSession, search_date: date, user_id: int
 ) -> list[Report]:
-    start = datetime(search_date.year, search_date.month, search_date.day)
-    end = datetime(search_date.year, search_date.month, search_date.day, 23, 59, 59)
+    start, end = _day_bounds(search_date)
     partner_subq = select(ReportPartner.report_id).where(
         ReportPartner.partner_id == user_id
     )
     result = await session.execute(
         select(Report)
         .where(
-            Report.created_at.between(start, end),
+            Report.created_at >= start,
+            Report.created_at < end,
             or_(
                 Report.user_id == user_id,
                 Report.id.in_(partner_subq),
@@ -241,7 +314,7 @@ async def get_reports_by_date_and_user(
 async def get_unconfirmed_reports(session: AsyncSession) -> list[Report]:
     result = await session.execute(
         select(Report)
-        .where(Report.is_confirmed == False)
+        .where(Report.is_confirmed.is_(False), Report.is_rejected.is_(False))
         .options(
             selectinload(Report.user),
             selectinload(Report.district),
@@ -257,22 +330,30 @@ async def confirm_report(
     session: AsyncSession, report_id: int, confirmed_by: int
 ) -> Optional[Report]:
     report = await get_report_by_id(session, report_id)
-    if not report:
+    if not report or report.is_confirmed or report.is_rejected:
         return None
     report.is_confirmed = True
     report.confirmed_by = confirmed_by
-    report.confirmed_at = datetime.utcnow()
+    report.confirmed_at = utcnow()
     await session.commit()
     return report
 
 
-async def reject_report(session: AsyncSession, report_id: int) -> bool:
+async def reject_report(
+    session: AsyncSession, report_id: int, rejected_by: int
+) -> Optional[Report]:
+    """Hisobotni rad etadi.
+
+    Yozuv o'chirilmaydi — kim, qachon rad etgani saqlanib qoladi.
+    """
     report = await get_report_by_id(session, report_id)
-    if not report:
-        return False
-    await session.delete(report)
+    if not report or report.is_confirmed or report.is_rejected:
+        return None
+    report.is_rejected = True
+    report.rejected_by = rejected_by
+    report.rejected_at = utcnow()
     await session.commit()
-    return True
+    return report
 
 
 # ─── Access Password ─────────────────────────────────────────────────────────
@@ -286,11 +367,22 @@ async def get_active_password(session: AsyncSession) -> Optional[AccessPassword]
     return result.scalars().first()
 
 
+async def _hash_password(raw_password: str) -> str:
+    # bcrypt ataylab sekin va CPU ni band qiladi. To'g'ridan-to'g'ri chaqirilsa
+    # butun bot event loop i ~0.3 soniya qotib qoladi, shuning uchun alohida
+    # oqimga chiqariladi.
+    return await asyncio.to_thread(
+        lambda: bcrypt.hashpw(raw_password.encode(), bcrypt.gensalt()).decode()
+    )
+
+
 async def verify_access_password(session: AsyncSession, raw_password: str) -> bool:
     active_pw = await get_active_password(session)
     if not active_pw:
         return False
-    return bcrypt.checkpw(raw_password.encode(), active_pw.password_hash.encode())
+    return await asyncio.to_thread(
+        bcrypt.checkpw, raw_password.encode(), active_pw.password_hash.encode()
+    )
 
 
 async def change_access_password(
@@ -299,7 +391,7 @@ async def change_access_password(
     await session.execute(
         AccessPassword.__table__.update().values(is_active=False)
     )
-    hashed = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    hashed = await _hash_password(new_password)
     new_pw = AccessPassword(
         password_hash=hashed,
         is_active=True,
@@ -314,7 +406,7 @@ async def change_access_password(
 async def create_initial_password(
     session: AsyncSession, raw_password: str
 ) -> AccessPassword:
-    hashed = bcrypt.hashpw(raw_password.encode(), bcrypt.gensalt()).decode()
+    hashed = await _hash_password(raw_password)
     pw = AccessPassword(password_hash=hashed, is_active=True, created_by=None)
     session.add(pw)
     await session.commit()
@@ -322,12 +414,69 @@ async def create_initial_password(
     return pw
 
 
-async def seed_districts(session: AsyncSession) -> None:
-    from config import DISTRICTS
-    existing = await get_all_districts(session)
-    if existing:
-        return
-    for _, name_uz, name_ru in DISTRICTS:
-        district = District(name_uz=name_uz, name_ru=name_ru)
-        session.add(district)
+# ─── Parol urinishlari ───────────────────────────────────────────────────────
+
+async def get_access_attempt(
+    session: AsyncSession, telegram_id: int
+) -> Optional[AccessAttempt]:
+    result = await session.execute(
+        select(AccessAttempt).where(AccessAttempt.telegram_id == telegram_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def is_access_blocked(session: AsyncSession, telegram_id: int) -> bool:
+    attempt = await get_access_attempt(session, telegram_id)
+    return bool(attempt and attempt.is_blocked)
+
+
+async def register_failed_attempt(
+    session: AsyncSession, telegram_id: int, max_attempts: int
+) -> tuple[int, bool]:
+    """Xato urinishni yozadi. (urinishlar soni, bloklandimi) qaytaradi."""
+    attempt = await get_access_attempt(session, telegram_id)
+    if attempt is None:
+        attempt = AccessAttempt(telegram_id=telegram_id, failed_count=0)
+        session.add(attempt)
+
+    attempt.failed_count += 1
+    attempt.updated_at = utcnow()
+    if attempt.failed_count >= max_attempts:
+        attempt.is_blocked = True
+
     await session.commit()
+    return attempt.failed_count, attempt.is_blocked
+
+
+async def reset_access_attempts(session: AsyncSession, telegram_id: int) -> None:
+    attempt = await get_access_attempt(session, telegram_id)
+    if attempt is None:
+        return
+    attempt.failed_count = 0
+    attempt.is_blocked = False
+    attempt.updated_at = utcnow()
+    await session.commit()
+
+
+# ─── Tumanlar seed ───────────────────────────────────────────────────────────
+
+async def seed_districts(session: AsyncSession) -> int:
+    """config.DISTRICTS dagi tumanlarni bazaga qo'shadi.
+
+    Ilgari bu funksiya bitta ham tuman bo'lsa darhol qaytib ketardi, shu
+    sababli ro'yxatga keyin qo'shilgan tumanlar hech qachon bazaga
+    tushmasdi. Endi faqat yo'qlari qo'shiladi.
+    """
+    from config import DISTRICTS
+
+    existing = {d.name_uz for d in await get_all_districts(session)}
+    added = 0
+    for name_uz, name_ru in DISTRICTS:
+        if name_uz in existing:
+            continue
+        session.add(District(name_uz=name_uz, name_ru=name_ru))
+        added += 1
+
+    if added:
+        await session.commit()
+    return added

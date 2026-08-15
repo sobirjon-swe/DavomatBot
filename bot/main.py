@@ -1,12 +1,17 @@
 import asyncio
 import logging
-from aiogram import Bot, Dispatcher
-from aiogram.fsm.storage.memory import MemoryStorage
+import secrets
+import string
 
-from config import BOT_TOKEN
-from database.session import init_db
-from database.session import AsyncSessionLocal
-from database.crud import seed_districts, get_active_password, create_initial_password
+from aiogram import Bot, Dispatcher
+from aiogram.fsm.storage.base import BaseStorage
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import BotCommand, ErrorEvent
+
+import config
+from database.crud import create_initial_password, get_active_password, seed_districts
+from database.session import AsyncSessionLocal, close_engine
+from middlewares.auth import AuthMiddleware
 
 from handlers.start import router as start_router
 from handlers.employee.report import router as report_router
@@ -17,28 +22,83 @@ from handlers.admin.attendance import router as attendance_router
 from handlers.admin.password import router as password_router
 from handlers.admin.roles import router as roles_router
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
 logger = logging.getLogger(__name__)
 
 
+def _generate_password(length: int = 10) -> str:
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
+def build_storage() -> BaseStorage:
+    """FSM omborini tanlaydi.
+
+    REDIS_URL berilgan bo'lsa Redis ishlatiladi va bot qayta ishga
+    tushganda yarim to'ldirilgan hisobotlar saqlanib qoladi.
+    """
+    if config.REDIS_URL:
+        from aiogram.fsm.storage.redis import RedisStorage
+
+        logger.info("FSM holati Redisda saqlanadi.")
+        return RedisStorage.from_url(config.REDIS_URL)
+
+    logger.warning(
+        "REDIS_URL ko'rsatilmagan — FSM holati xotirada saqlanadi. "
+        "Bot qayta ishga tushsa, to'ldirilayotgan hisobotlar yo'qoladi."
+    )
+    return MemoryStorage()
+
+
 async def on_startup(bot: Bot) -> None:
-    await init_db()
     async with AsyncSessionLocal() as session:
-        await seed_districts(session)
-        active_pw = await get_active_password(session)
-        if not active_pw:
-            await create_initial_password(session, "12345")
-            logger.info("Default password created: 12345 — change it immediately!")
+        added = await seed_districts(session)
+        if added:
+            logger.info("Bazaga %s ta yangi tuman qo'shildi.", added)
+
+        if not await get_active_password(session):
+            raw_password = config.INITIAL_ACCESS_PASSWORD or _generate_password()
+            await create_initial_password(session, raw_password)
+            logger.warning(
+                "Kirish paroli yaratildi: %s | Uni darhol o'zgartiring: "
+                "Admin panel -> Parolni o'zgartirish.",
+                raw_password,
+            )
+
+    await bot.set_my_commands(
+        [
+            BotCommand(command="start", description="Boshlash / Начать"),
+            BotCommand(command="cancel", description="Bekor qilish / Отмена"),
+        ]
+    )
+    logger.info("Bot ishga tushdi.")
+
+
+async def on_error(event: ErrorEvent) -> bool:
+    """Ushlanmagan xatoni logga yozadi va botni to'xtab qolishdan saqlaydi."""
+    logger.exception(
+        "Yangilanishni ishlashda xato: %r", event.exception, exc_info=event.exception
+    )
+    return True
 
 
 async def main() -> None:
-    bot = Bot(token=BOT_TOKEN)
-    dp = Dispatcher(storage=MemoryStorage())
+    logging.basicConfig(
+        level=getattr(logging, config.LOG_LEVEL, logging.INFO),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
+    config.validate()
+
+    bot = Bot(token=config.BOT_TOKEN)
+    dp = Dispatcher(storage=build_storage())
+
+    # Rol filtrlari ishlashi uchun db_user handlerdan oldin tayyor bo'lishi
+    # kerak — shuning uchun outer middleware.
+    auth = AuthMiddleware()
+    dp.message.outer_middleware(auth)
+    dp.callback_query.outer_middleware(auth)
 
     dp.startup.register(on_startup)
+    dp.errors.register(on_error)
 
     dp.include_router(start_router)
     dp.include_router(report_router)
@@ -49,22 +109,15 @@ async def main() -> None:
     dp.include_router(password_router)
     dp.include_router(roles_router)
 
-    from aiogram.types import Message, Update
-
-    @dp.channel_post()
-    async def detect_channel(message: Message):
-        logger.info(f"KANAL ANIQLANDI: id={message.chat.id} nomi={message.chat.title}")
-
-    @dp.update()
-    async def log_all_updates(update: Update):
-        logger.info(f"ANY UPDATE: {update.model_dump_json()[:300]}")
-
-    logger.info("Bot ishga tushdi...")
     try:
-        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types() + ["channel_post"])
+        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:
         await bot.session.close()
+        await close_engine()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        logging.getLogger(__name__).info("Bot to'xtatildi.")
