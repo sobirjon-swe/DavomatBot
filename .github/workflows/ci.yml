@@ -75,6 +75,10 @@ jobs:
       - name: Bog'liqliklar
         run: pnpm install --frozen-lockfile
         working-directory: webapp
+      - name: Testlar
+        run: pnpm run test
+        working-directory: webapp
+
       - name: Tiplar va build
         # `build` ichida `tsc -b` bor, ya'ni tip xatolari ham shu yerda chiqadi
         run: pnpm run build

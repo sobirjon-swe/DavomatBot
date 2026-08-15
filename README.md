@@ -185,8 +185,18 @@ cd webapp
 corepack enable            # pnpm ni yoqadi
 pnpm install
 pnpm dev                   # http://localhost:5173
+pnpm test                  # 37 ta test (vitest)
 pnpm build                 # dist/ ga yig'adi (ichida tsc -b ham bor)
 ```
+
+Testlar Vitest + Testing Library da. Nimalar qamrab olingan:
+
+| Fayl | Nima tekshiriladi |
+|---|---|
+| `lib/utils.test.ts` | Vaqt Toshkent mintaqasida, sana chegarasidan o'tish |
+| `lib/api.test.ts` | Authorization sarlavhasi, FormData da Content-Type qo'yilmasligi, xato kodlarini o'qish |
+| `lib/location.test.ts` | Telegram → brauzer zaxira zanjiri, maydon nomlarining ikki shakli, xato kodlari |
+| `pages/NewReportPage.test.tsx` | Forma validatsiyasi, rasm yuklash holati, yuborilayotgan so'rov tanasi |
 
 ### Mavzu
 
@@ -275,7 +285,7 @@ CI (`.github/workflows/ci.yml`) har PR da uch ishni bajaradi:
 |---|---|
 | `Ruff` | Kod uslubi, ishlatilmagan importlar |
 | `Testlar` | Python 3.10 va 3.11 da, PostgreSQL service bilan |
-| `Mini App` | Frontend tiplari va build |
+| `Mini App` | Frontend testlari, tiplari va build |
 | `Migratsiyalar` | `upgrade head` → `downgrade base` → `upgrade head`, hamda modellar bilan migratsiyalar mos kelishi |
 
 Oxirgi tekshiruv muhim: modelga ustun qo'shib, migratsiya yozilmasa CI
