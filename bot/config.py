@@ -1,4 +1,5 @@
 import os
+from datetime import time
 
 from dotenv import load_dotenv
 
@@ -88,6 +89,46 @@ MAX_REPORT_PHOTOS: int = 7
 
 # Hisobotlar sanasi shu vaqt mintaqasi bo'yicha hisoblanadi
 TIMEZONE: str = "Asia/Tashkent"
+
+
+# ─── Kunlik eslatmalar ──────────────────────────────────────────────────────
+
+def _get_time(name: str) -> time | None:
+    """HH:MM ko'rinishidagi vaqt. Bo'sh bo'lsa vazifa o'chiriladi."""
+    raw = _get_str(name)
+    if not raw:
+        return None
+    try:
+        hour, minute = raw.split(":")
+        return time(int(hour), int(minute))
+    except ValueError:
+        raise ConfigError(
+            f"{name} HH:MM ko'rinishida bo'lishi kerak (masalan 17:00), "
+            f"berilgan qiymat: {raw!r}"
+        ) from None
+
+
+def _get_weekdays(name: str, default: str) -> frozenset[int]:
+    """Hafta kunlari: 1 = dushanba ... 7 = yakshanba."""
+    raw = _get_str(name, default)
+    try:
+        days = {int(part) for part in raw.split(",") if part.strip()}
+    except ValueError:
+        raise ConfigError(f"{name} vergul bilan ajratilgan raqamlar bo'lishi kerak") from None
+
+    if not days or not days <= set(range(1, 8)):
+        raise ConfigError(f"{name} 1 dan 7 gacha bo'lgan raqamlardan iborat bo'lishi kerak")
+    return frozenset(days)
+
+
+# Hodimga "bugun hisobot bermadingiz" eslatmasi yuboriladigan vaqt
+REMINDER_TIME: time | None = _get_time("REMINDER_TIME")
+
+# Adminlarga kunlik yakun (kim hisobot bermadi) yuboriladigan vaqt
+SUMMARY_TIME: time | None = _get_time("SUMMARY_TIME")
+
+# Ish kunlari — dam olish kunlari eslatma yuborilmaydi
+REMINDER_WEEKDAYS: frozenset[int] = _get_weekdays("REMINDER_WEEKDAYS", "1,2,3,4,5")
 
 
 def validate() -> None:

@@ -103,6 +103,7 @@ def confirm_kb(lang: str, action: str) -> InlineKeyboardMarkup:
 def reports_section_kb(lang: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text=t(lang, "btn_today_reports"), callback_data="rpt:today")
+    builder.button(text=t(lang, "btn_missing"), callback_data="rpt:missing")
     builder.button(text=t(lang, "btn_search_reports"), callback_data="rpt:search")
     builder.adjust(1)
     return builder.as_markup()

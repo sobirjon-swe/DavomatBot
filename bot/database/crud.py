@@ -424,6 +424,59 @@ async def get_unconfirmed_reports(
     )
 
 
+async def get_employees_without_report(
+    session: AsyncSession, day: date, *, only_role: UserRole | None = None
+) -> list[User]:
+    """Berilgan kunda hisobotda umuman qatnashmagan faol hodimlar.
+
+    Sherik sifatida qo'shilgan hodim ham ishda bo'lgan hisoblanadi,
+    shuning uchun u ro'yxatga tushmaydi.
+
+    `only_role` berilsa faqat o'sha roldagilar qaytariladi — kunlik
+    eslatma odatda faqat hodimlarga yuboriladi, rahbarlarga emas.
+    """
+    start, end = _day_bounds(day)
+
+    authors = select(Report.user_id).where(
+        Report.created_at >= start, Report.created_at < end
+    )
+    partners = (
+        select(ReportPartner.partner_id)
+        .join(Report, Report.id == ReportPartner.report_id)
+        .where(Report.created_at >= start, Report.created_at < end)
+    )
+
+    stmt = (
+        select(User)
+        .where(
+            User.is_active.is_(True),
+            User.id.not_in(authors.union(partners)),
+        )
+        .order_by(User.full_name)
+    )
+    if only_role is not None:
+        stmt = stmt.where(User.role == only_role)
+
+    result = await session.execute(
+        stmt.options(selectinload(User.user_districts).selectinload(UserDistrict.district))
+    )
+    return list(result.scalars().all())
+
+
+async def get_admins(session: AsyncSession) -> list[User]:
+    """Xabar yuborish mumkin bo'lgan adminlar (botga kirgan va faol)."""
+    result = await session.execute(
+        select(User)
+        .where(
+            User.is_active.is_(True),
+            User.telegram_id.is_not(None),
+            User.role.in_([UserRole.admin, UserRole.superadmin]),
+        )
+        .order_by(User.full_name)
+    )
+    return list(result.scalars().all())
+
+
 async def count_unconfirmed_reports(session: AsyncSession) -> int:
     return await _count(session, _reports_stmt(status="pending"))
 

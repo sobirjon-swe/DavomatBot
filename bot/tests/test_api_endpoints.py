@@ -462,6 +462,49 @@ async def test_rad_etilgan_hisobot_saqlanadi(
     assert await crud.get_report_by_id(session, report.id) is not None
 
 
+# ─── Hisobot bermaganlar ────────────────────────────────────────────────────
+
+async def test_hodim_bermaganlar_royxatini_kora_olmaydi(api_client, employee):
+    response = await api_client.get(
+        "/api/reports/missing", headers=auth_header(employee.telegram_id)
+    )
+
+    assert response.status_code == 403
+
+
+async def test_admin_bermaganlarni_koradi(api_client, employee, admin):
+    response = await api_client.get(
+        "/api/reports/missing", headers=auth_header(admin.telegram_id)
+    )
+    body = response.json()
+
+    assert response.status_code == 200
+    # Faqat hodim rolidagilar; admin o'zi ro'yxatga tushmaydi
+    assert [u["id"] for u in body] == [employee.id]
+
+
+async def test_hisobot_berganlar_royxatdan_chiqadi(
+    api_client, session, employee, admin, districts
+):
+    await _report(session, employee, districts[0].id)
+
+    response = await api_client.get(
+        "/api/reports/missing", headers=auth_header(admin.telegram_id)
+    )
+
+    assert response.json() == []
+
+
+async def test_missing_yol_report_id_bilan_toqnashmaydi(api_client, admin):
+    """`/reports/missing` `/reports/{id}` dan oldin turishi kerak, aks holda
+    "missing" so'zi id sifatida o'qilib 422 qaytarardi."""
+    response = await api_client.get(
+        "/api/reports/missing", headers=auth_header(admin.telegram_id)
+    )
+
+    assert response.status_code == 200
+
+
 # ─── Rasm yuklash ───────────────────────────────────────────────────────────
 
 async def test_rasm_yuklanadi_va_file_id_qaytadi(

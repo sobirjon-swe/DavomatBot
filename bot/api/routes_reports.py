@@ -7,7 +7,16 @@ from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 
 import config
 from api.deps import AdminUser, BotDep, CurrentUser, SessionDep
-from api.schemas import OkOut, Page, PhotoOut, ReportCreate, ReportOut, report_out
+from api.schemas import (
+    OkOut,
+    Page,
+    PhotoOut,
+    ReportCreate,
+    ReportOut,
+    UserBrief,
+    report_out,
+    user_brief,
+)
 from database.crud import (
     add_report_partners,
     add_report_photos,
@@ -16,8 +25,10 @@ from database.crud import (
     create_report,
     get_all_active_employees,
     get_district_by_id,
+    get_employees_without_report,
     get_report_by_id,
     list_reports,
+    local_today,
     reject_report,
 )
 from database.models import Report, ReportType, User, UserRole
@@ -98,6 +109,23 @@ async def list_reports_endpoint(
         page=page,
         pages=page_count(total, per_page=per_page),
     )
+
+
+@router.get("/reports/missing", response_model=list[UserBrief])
+async def missing_reports(
+    admin: AdminUser,
+    session: SessionDep,
+    day: date | None = None,
+) -> list[UserBrief]:
+    """Berilgan kunda hisobotda qatnashmagan hodimlar.
+
+    Yo'l `/reports/{report_id}` dan OLDIN e'lon qilingan — aks holda
+    "missing" so'zi report_id sifatida o'qilib, 422 qaytarardi.
+    """
+    employees = await get_employees_without_report(
+        session, day or local_today(), only_role=UserRole.employee
+    )
+    return [user_brief(e) for e in employees]
 
 
 @router.get("/reports/{report_id}", response_model=ReportOut)

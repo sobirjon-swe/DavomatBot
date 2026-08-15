@@ -21,6 +21,8 @@ from handlers.employee.settings import router as settings_router
 from handlers.start import router as start_router
 from keyboards import webapp
 from middlewares.auth import AuthMiddleware
+from utils.reminders import send_reminders, send_summary
+from utils.scheduler import run_daily
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +84,43 @@ async def on_startup(bot: Bot) -> None:
     logger.info("Bot ishga tushdi.")
 
 
+def start_scheduled_jobs(bot: Bot) -> list[asyncio.Task[None]]:
+    """Kunlik eslatma va yakunni fon vazifasi sifatida yoqadi.
+
+    Vaqt ko'rsatilmagan bo'lsa vazifa umuman ishga tushmaydi.
+    """
+    tasks: list[asyncio.Task[None]] = []
+
+    if config.REMINDER_TIME:
+        tasks.append(
+            asyncio.create_task(
+                run_daily(
+                    "Kunlik eslatma",
+                    config.REMINDER_TIME,
+                    lambda day: send_reminders(bot, day),
+                )
+            )
+        )
+        logger.info("Kunlik eslatma yoqildi: %s", config.REMINDER_TIME.strftime("%H:%M"))
+
+    if config.SUMMARY_TIME:
+        tasks.append(
+            asyncio.create_task(
+                run_daily(
+                    "Kunlik yakun",
+                    config.SUMMARY_TIME,
+                    lambda day: send_summary(bot, day),
+                )
+            )
+        )
+        logger.info("Kunlik yakun yoqildi: %s", config.SUMMARY_TIME.strftime("%H:%M"))
+
+    if not tasks:
+        logger.info("REMINDER_TIME va SUMMARY_TIME ko'rsatilmagan — eslatmalar o'chiq.")
+
+    return tasks
+
+
 async def on_error(event: ErrorEvent) -> bool:
     """Ushlanmagan xatoni logga yozadi va botni to'xtab qolishdan saqlaydi."""
     logger.exception(
@@ -118,9 +157,13 @@ async def main() -> None:
     dp.include_router(password_router)
     dp.include_router(roles_router)
 
+    jobs = start_scheduled_jobs(bot)
+
     try:
         await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:
+        for job in jobs:
+            job.cancel()
         await bot.session.close()
         await close_engine()
 

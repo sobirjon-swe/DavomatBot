@@ -19,6 +19,7 @@ os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
 import json  # noqa: E402
 import time  # noqa: E402
+from contextlib import asynccontextmanager  # noqa: E402
 from types import SimpleNamespace  # noqa: E402
 from urllib.parse import urlencode  # noqa: E402
 
@@ -180,6 +181,21 @@ class FakeBot:
 @pytest.fixture
 def fake_bot() -> FakeBot:
     return FakeBot()
+
+
+@pytest.fixture
+def session_factory(session):
+    """Fon vazifalari uchun sessiya manbasi.
+
+    Ular odatda AsyncSessionLocal ni chaqiradi, lekin u testdagi
+    xotira bazasiga emas, boshqa ulanishga borib qoladi.
+    """
+
+    @asynccontextmanager
+    async def factory():
+        yield session
+
+    return factory
 
 
 @pytest_asyncio.fixture

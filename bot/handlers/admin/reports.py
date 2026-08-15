@@ -8,11 +8,13 @@ from database.crud import (
     count_reports_by_date_and_user,
     count_today_reports,
     get_all_users,
+    get_employees_without_report,
     get_report_by_id,
     get_reports_by_date_and_user,
     get_today_reports,
+    local_today,
 )
-from database.models import User
+from database.models import User, UserRole
 from database.session import AsyncSessionLocal
 from filters.roles import IsAdmin
 from keyboards.admin_kb import employees_list_kb, reports_section_kb, view_photos_kb
@@ -28,6 +30,7 @@ from locales import t
 from states.admin import AdminReportStates
 from utils.formatters import build_report_caption, esc, format_datetime
 from utils.messages import text_of
+from utils.reminders import format_missing
 
 router = Router()
 router.message.filter(IsAdmin())
@@ -147,6 +150,25 @@ async def report_card(
             int(raw_page),
             view_photos_kb(lang, report.id) if report.photos else None,
         ),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "rpt:missing")
+async def missing_reports(
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
+):
+    """Bugun hisobot bermagan hodimlar — kunlik yakunning talab bo'yicha varianti."""
+    lang = db_user.language
+    today = local_today()
+
+    async with AsyncSessionLocal() as session:
+        employees = await get_employees_without_report(
+            session, today, only_role=UserRole.employee
+        )
+
+    await callback.message.edit_text(
+        format_missing(lang, today, employees), parse_mode="HTML"
     )
     await callback.answer()
 

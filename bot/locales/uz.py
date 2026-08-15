@@ -207,6 +207,16 @@ report_card = (
     "🗺 Joylashuv: {location}"
 )
 btn_view_photos = "📸 Rasmlarni ko'rish"
+btn_missing = "🚫 Hisobot bermaganlar"
+
+missing_header = "🚫 <b>{date} — hisobot bermaganlar: {count} ta</b>"
+nobody_missing = "✅ {date} — barcha hodimlar hisobot berdi."
+
+daily_reminder = (
+    "⏰ <b>Eslatma</b>\n\n"
+    "Bugun hali hisobot yubormadingiz. Ish kuni tugashidan oldin "
+    "ma'lumot berishni unutmang."
+)
 
 # ─── Davomat tasdiqlash ──────────────────────────────────────────────────────
 attendance_menu = "✅ Tasdiqlash kutilmoqda"

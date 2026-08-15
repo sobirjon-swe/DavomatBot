@@ -139,6 +139,8 @@ almashtirilgan, boshqa token bilan imzolangan va muddati o'tgan holatlar.
 | POST | `/api/reports` | hodim |
 | POST | `/api/reports/{id}/approve` | admin |
 | POST | `/api/reports/{id}/reject` | admin |
+| GET | `/api/reports/missing?day=` | admin |
+| GET | `/api/colleagues` | hamma |
 | POST | `/api/photos` | hamma |
 | GET | `/api/employees?page=&per_page=` | admin |
 | POST | `/api/employees` | admin |
@@ -290,6 +292,35 @@ CI (`.github/workflows/ci.yml`) har PR da uch ishni bajaradi:
 
 Oxirgi tekshiruv muhim: modelga ustun qo'shib, migratsiya yozilmasa CI
 qizil bo'ladi — ilgari bunday o'zgarish jimgina prodga chiqib ketardi.
+
+## Kunlik eslatmalar
+
+Bot ikkita vaqtga bog'liq vazifani bajaradi. Ikkalasi ham `.env` orqali
+yoqiladi; vaqt ko'rsatilmasa vazifa umuman ishga tushmaydi.
+
+| Sozlama | Nima bo'ladi |
+|---|---|
+| `REMINDER_TIME=17:00` | Bugun hisobot bermagan **hodimlarga** eslatma |
+| `SUMMARY_TIME=18:00` | **Adminlarga** "kim hisobot bermadi" ro'yxati |
+| `REMINDER_WEEKDAYS=1,2,3,4,5` | Ish kunlari (1 = dushanba) |
+
+Adminlar ro'yxatni istalgan vaqtda ham ko'ra oladi:
+`📊 Hisobotlar → 🚫 Hisobot bermaganlar`, yoki API orqali
+`GET /api/reports/missing?day=`.
+
+Bir nechta nozik joy:
+
+* **Sherik ham ishda hisoblanadi.** Hodim boshqaning hisobotiga sherik
+  qilib qo'shilgan bo'lsa, unga eslatma yuborilmaydi.
+* **Eslatma faqat `employee` roliga ketadi.** Adminlar hisobotni
+  tasdiqlaydi, ularga kunlik eslatma shovqindan boshqa narsa emas.
+* **Takror yuborilmaydi.** Rejalashtiruvchi doim "hozirdan keyingi" eng
+  yaqin vaqtni oladi, shuning uchun bot vazifa bajarilgandan keyin qayta
+  ishga tushsa ham xabar ikkinchi marta ketmaydi.
+* **O'tkazib yuborilgan kun qaytarilmaydi.** Agar bot 17:00 da o'chiq
+  bo'lsa, o'sha kungi eslatma yuborilmaydi — yarim kechada kelgan
+  eslatma foydadan ko'ra chalg'itadi.
+* Botni bloklagan bitta hodim qolganlarga xabar borishiga xalaqit bermaydi.
 
 ## Rollar
 
