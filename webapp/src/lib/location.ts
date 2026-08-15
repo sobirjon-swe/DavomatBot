@@ -58,8 +58,15 @@ async function fromTelegram(): Promise<Coordinates | null> {
     if (!locationManager.requestLocation.isAvailable()) return null
 
     return pick(await locationManager.requestLocation())
-  } catch {
-    // Ruxsat berilmagan yoki mijoz qo'llab-quvvatlamaydi — brauzerga o'tamiz
+  } catch (error) {
+    // Ruxsat aniq rad etilgan bo'lsa buni brauzer zaxira yo'liga
+    // yashirmaymiz — aks holda foydalanuvchi "Sozlamalarni ochish"
+    // tugmasini ko'rmay, umumiy "aniqlab bo'lmadi" xabarini ko'radi.
+    if (locationManager.isAccessRequested() && !locationManager.isAccessGranted()) {
+      throw new LocationError('denied', "Joylashuvga ruxsat berilmadi")
+    }
+    // Boshqa sabab (qo'llab-quvvatlanmaydi, band va h.k.) — brauzerga o'tamiz
+    void error
     return null
   }
 }

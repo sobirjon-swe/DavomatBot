@@ -11,6 +11,7 @@ from database.session import AsyncSessionLocal
 from filters.roles import IsAdmin
 from locales import t
 from states.admin import AdminPasswordStates
+from utils.menu_texts import RESERVED_MENU_TEXTS
 from utils.messages import text_of
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ async def change_password_start(
     await state.set_state(AdminPasswordStates.entering_current)
 
 
-@router.message(AdminPasswordStates.entering_current)
+@router.message(AdminPasswordStates.entering_current, ~F.text.in_(RESERVED_MENU_TEXTS))
 async def verify_current_password(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")
@@ -52,7 +53,7 @@ async def verify_current_password(message: Message, state: FSMContext):
     await state.set_state(AdminPasswordStates.entering_new)
 
 
-@router.message(AdminPasswordStates.entering_new)
+@router.message(AdminPasswordStates.entering_new, ~F.text.in_(RESERVED_MENU_TEXTS))
 async def enter_new_password(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")
@@ -72,7 +73,7 @@ async def enter_new_password(message: Message, state: FSMContext):
     await state.set_state(AdminPasswordStates.entering_confirm)
 
 
-@router.message(AdminPasswordStates.entering_confirm)
+@router.message(AdminPasswordStates.entering_confirm, ~F.text.in_(RESERVED_MENU_TEXTS))
 async def confirm_new_password(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")

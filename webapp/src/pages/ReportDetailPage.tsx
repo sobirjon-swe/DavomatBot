@@ -88,7 +88,11 @@ export function ReportDetailPage() {
 
       {canDecide && (
         <div className="flex gap-3">
-          <Button className="flex-1" disabled={busy} onClick={() => approve.mutate()}>
+          <Button
+            className="flex-1"
+            disabled={busy}
+            onClick={() => approve.mutate(undefined, { onSuccess: () => reject.reset() })}
+          >
             <Check />
             Tasdiqlash
           </Button>
@@ -96,7 +100,14 @@ export function ReportDetailPage() {
             variant="destructive"
             className="flex-1"
             disabled={busy}
-            onClick={() => reject.mutate(undefined, { onSuccess: () => navigate(-1) })}
+            onClick={() =>
+              reject.mutate(undefined, {
+                onSuccess: () => {
+                  approve.reset()
+                  navigate(-1)
+                },
+              })
+            }
           >
             <X />
             Rad etish

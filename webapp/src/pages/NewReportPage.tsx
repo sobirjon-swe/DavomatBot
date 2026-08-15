@@ -75,6 +75,9 @@ export function NewReportPage() {
   // Ko'rish uchun yaratilgan blob URL lar oqib ketmasin
   const photosRef = useRef(photos)
   photosRef.current = photos
+  // photos.length ning sinxron (render tsiklidan mustaqil) nusxasi —
+  // addFiles ichida MAX_PHOTOS chegarasini to'g'ri hisoblash uchun kerak.
+  const photosCountRef = useRef(0)
   useEffect(
     () => () => {
       for (const photo of photosRef.current) URL.revokeObjectURL(photo.previewUrl)
@@ -123,8 +126,15 @@ export function NewReportPage() {
 
   async function addFiles(files: FileList | null) {
     if (!files) return
-    const room = MAX_PHOTOS - photos.length
+
+    // `room` photosCountRef dan hisoblanadi, `photos.length` state dan emas —
+    // state React render tsikliga bog'liq, shuning uchun addFiles ketma-ket
+    // (render orasida) chaqirilsa ikkalasi ham eski uzunlikni ko'rib,
+    // MAX_PHOTOS dan ko'p rasm qo'shilib ketishi mumkin edi. Ref esa
+    // darhol, sinxron yangilanadi.
+    const room = MAX_PHOTOS - photosCountRef.current
     const selected = Array.from(files).slice(0, Math.max(room, 0))
+    photosCountRef.current += selected.length
 
     for (const file of selected) {
       const key = `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`
@@ -153,6 +163,7 @@ export function NewReportPage() {
       if (target) URL.revokeObjectURL(target.previewUrl)
       return prev.filter((p) => p.key !== key)
     })
+    photosCountRef.current = Math.max(0, photosCountRef.current - 1)
   }
 
   function togglePartner(id: number) {

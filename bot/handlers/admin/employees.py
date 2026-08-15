@@ -35,6 +35,7 @@ from keyboards.pagination import (
 from locales import t
 from states.admin import AdminEmployeeStates
 from utils.formatters import esc, format_role, format_user_districts
+from utils.menu_texts import RESERVED_MENU_TEXTS
 from utils.messages import text_of
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,7 @@ router.callback_query.filter(IsAdmin())
 async def employees_menu(
     message: Message, state: FSMContext, db_user: User | None = None
 ):
+    await state.clear()
     await message.answer(
         t(db_user.language, "employees_menu"),
         reply_markup=employees_section_kb(db_user.language),
@@ -246,7 +248,7 @@ async def add_employee_start(
     await callback.answer()
 
 
-@router.message(AdminEmployeeStates.entering_name)
+@router.message(AdminEmployeeStates.entering_name, ~F.text.in_(RESERVED_MENU_TEXTS))
 async def admin_enter_name(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")
@@ -261,7 +263,7 @@ async def admin_enter_name(message: Message, state: FSMContext):
     await state.set_state(AdminEmployeeStates.entering_position)
 
 
-@router.message(AdminEmployeeStates.entering_position)
+@router.message(AdminEmployeeStates.entering_position, ~F.text.in_(RESERVED_MENU_TEXTS))
 async def admin_enter_position(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")
@@ -400,7 +402,7 @@ async def edit_employee_field(
     await callback.answer()
 
 
-@router.message(AdminEmployeeStates.editing_name)
+@router.message(AdminEmployeeStates.editing_name, ~F.text.in_(RESERVED_MENU_TEXTS))
 async def update_employee_name(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")
@@ -417,7 +419,7 @@ async def update_employee_name(message: Message, state: FSMContext):
     await state.clear()
 
 
-@router.message(AdminEmployeeStates.editing_position)
+@router.message(AdminEmployeeStates.editing_position, ~F.text.in_(RESERVED_MENU_TEXTS))
 async def update_employee_position(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")

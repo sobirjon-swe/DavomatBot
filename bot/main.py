@@ -126,6 +126,16 @@ async def on_error(event: ErrorEvent) -> bool:
     logger.exception(
         "Yangilanishni ishlashda xato: %r", event.exception, exc_info=event.exception
     )
+
+    # Callback ichida xato bo'lsa callback.answer() chaqirilmay qolgan bo'lishi
+    # mumkin — mijozda tugma "aylanib" osilib qoladi, shuni tozalaymiz.
+    callback = getattr(event.update, "callback_query", None)
+    if callback is not None:
+        try:
+            await callback.answer()
+        except Exception:
+            pass
+
     return True
 
 

@@ -15,6 +15,7 @@ from database.crud import (
     get_district_by_id,
     get_districts_by_ids,
     get_report_by_id,
+    get_user_by_id,
     get_user_district_ids,
 )
 from database.models import ReportType, User
@@ -34,6 +35,7 @@ from keyboards.employee_kb import (
 from locales import t
 from states.report import ReportStates
 from utils.formatters import TASHKENT_TZ, esc, format_location_url, format_report_type
+from utils.menu_texts import RESERVED_MENU_TEXTS
 from utils.messages import text_of
 from utils.notifications import notify_partners
 
@@ -179,7 +181,7 @@ async def choose_district(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.message(ReportStates.entering_customer)
+@router.message(ReportStates.entering_customer, ~F.text.in_(RESERVED_MENU_TEXTS))
 async def enter_customer(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")
@@ -212,7 +214,7 @@ async def receive_location(message: Message, state: FSMContext):
     await state.set_state(ReportStates.sending_photos)
 
 
-@router.message(ReportStates.sending_location)
+@router.message(ReportStates.sending_location, ~F.text.in_(RESERVED_MENU_TEXTS))
 async def location_expected(message: Message, state: FSMContext):
     data = await state.get_data()
     await message.answer(t(data.get("lang", "uz"), "location_expected"))
@@ -263,7 +265,7 @@ async def photos_done(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.message(ReportStates.entering_plots)
+@router.message(ReportStates.entering_plots, ~F.text.in_(RESERVED_MENU_TEXTS))
 async def enter_plots_count(message: Message, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")
@@ -342,6 +344,13 @@ async def submit_report(callback: CallbackQuery, state: FSMContext, bot: Bot):
     lang = data.get("lang", "uz")
 
     async with AsyncSessionLocal() as session:
+        current_user = await get_user_by_id(session, data["user_id"])
+        if not current_user or not current_user.is_active:
+            await callback.message.edit_text(t(lang, "account_deactivated"))
+            await state.clear()
+            await callback.answer()
+            return
+
         report = await create_report(
             session,
             user_id=data["user_id"],

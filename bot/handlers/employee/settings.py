@@ -19,6 +19,7 @@ async def settings_menu(
 ):
     if not db_user or not db_user.is_active:
         return
+    await state.clear()
     await message.answer(
         t(db_user.language, "settings_menu"),
         reply_markup=settings_kb(db_user.language),
