@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command, CommandStart
@@ -8,15 +7,26 @@ from aiogram.types import CallbackQuery, Message
 
 import config
 from database.crud import (
-    create_user, get_all_districts, get_unlinked_users, get_user_by_id,
-    is_access_blocked, link_telegram_account, register_failed_attempt,
-    reset_access_attempts, set_user_districts, verify_access_password
+    create_user,
+    get_all_districts,
+    get_unlinked_users,
+    get_user_by_id,
+    is_access_blocked,
+    link_telegram_account,
+    register_failed_attempt,
+    reset_access_attempts,
+    set_user_districts,
+    verify_access_password,
 )
 from database.models import User, UserRole
 from database.session import AsyncSessionLocal
 from keyboards.admin_kb import admin_login_choice_kb, admin_main_menu_kb
 from keyboards.employee_kb import (
-    districts_kb, language_kb, link_accounts_kb, main_menu_kb, remove_kb
+    districts_kb,
+    language_kb,
+    link_accounts_kb,
+    main_menu_kb,
+    remove_kb,
 )
 from locales import t
 from states.registration import RegistrationStates
@@ -42,7 +52,7 @@ async def show_home(message: Message, user: User) -> None:
 
 @router.message(CommandStart())
 async def cmd_start(
-    message: Message, state: FSMContext, db_user: Optional[User] = None
+    message: Message, state: FSMContext, db_user: User | None = None
 ):
     await state.clear()
     telegram_id = message.from_user.id
@@ -71,7 +81,7 @@ async def cmd_start(
 # /cancel oddiy matn sifatida qabul qilinadi.
 @router.message(Command("cancel"))
 async def cmd_cancel(
-    message: Message, state: FSMContext, db_user: Optional[User] = None
+    message: Message, state: FSMContext, db_user: User | None = None
 ):
     lang = db_user.language if db_user else "uz"
     had_state = await state.get_state() is not None
@@ -102,7 +112,7 @@ async def choose_language(callback: CallbackQuery, state: FSMContext):
 
 @router.message(RegistrationStates.waiting_password)
 async def check_password(
-    message: Message, state: FSMContext, db_user: Optional[User] = None
+    message: Message, state: FSMContext, db_user: User | None = None
 ):
     telegram_id = message.from_user.id
     data = await state.get_data()
@@ -298,7 +308,7 @@ async def toggle_district(callback: CallbackQuery, state: FSMContext, bot: Bot):
 
 @router.callback_query(F.data.startswith("admin_login:"))
 async def admin_login_choice_handler(
-    callback: CallbackQuery, state: FSMContext, db_user: Optional[User] = None
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
 ):
     if not db_user or db_user.role not in (UserRole.admin, UserRole.superadmin):
         await callback.answer(t("uz", "not_authorized"), show_alert=True)

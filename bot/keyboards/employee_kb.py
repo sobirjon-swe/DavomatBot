@@ -1,6 +1,4 @@
-from aiogram.types import (
-    InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
-)
+from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 import config

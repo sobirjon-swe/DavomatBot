@@ -14,6 +14,12 @@ invalid_number = "🔢 Faqat raqam kiriting."
 action_cancelled = "❌ Amal bekor qilindi."
 nothing_to_cancel = "ℹ️ Bekor qiladigan amal yo'q."
 
+# ─── Sahifalash ─────────────────────────────────────────────────────────────
+btn_back_to_list = "◀️ Ro'yxatga"
+employees_list_header = "👥 <b>Hodimlar</b> — jami {total} ta"
+reports_list_header = "📊 <b>Hisobotlar</b> — jami {total} ta"
+pending_list_header = "✅ <b>Tasdiqlash kutilmoqda</b> — jami {total} ta"
+
 # ─── Ro'yxatdan o'tish ──────────────────────────────────────────────────────
 enter_full_name = "👤 Ism va familyangizni kiriting:"
 enter_position = "💼 Lavozimingizni kiriting:"

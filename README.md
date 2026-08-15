@@ -4,7 +4,7 @@ Toshkent viloyati bo'yicha ish davomatini yig'adigan Telegram bot.
 Hodim joyidan hisobot yuboradi (tur, sherik, hudud, buyurtmachi, joylashuv,
 3–7 rasm), admin uni tasdiqlaydi va hisobot kanalga chiqadi.
 
-Texnologiyalar: Python 3.11+, aiogram 3, SQLAlchemy 2 (async), PostgreSQL, Alembic.
+Texnologiyalar: Python 3.10+, aiogram 3, SQLAlchemy 2 (async), PostgreSQL, Alembic.
 
 ---
 
@@ -87,6 +87,35 @@ Yangi migratsiya yaratish:
 ```bash
 alembic revision --autogenerate -m "nima o'zgardi"
 ```
+
+## Testlar va linter
+
+```bash
+cd bot
+pip install -r requirements-dev.txt
+pytest          # 69 ta test, ~10 soniya
+ruff check .
+```
+
+Standart holatda testlar xotiradagi SQLite da ishlaydi — hech narsa
+sozlash shart emas. Ammo SQLite vaqt mintaqasini saqlamaydi, shuning uchun
+`TIMESTAMPTZ` ga bog'liq testlar o'tkazib yuboriladi. Ularni ishga tushirish
+uchun haqiqiy PostgreSQL kerak:
+
+```bash
+TEST_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/davomat_test pytest
+```
+
+CI (`.github/workflows/ci.yml`) har PR da uch ishni bajaradi:
+
+| Ish | Nima tekshiriladi |
+|---|---|
+| `Ruff` | Kod uslubi, ishlatilmagan importlar |
+| `Testlar` | Python 3.10 va 3.11 da, PostgreSQL service bilan |
+| `Migratsiyalar` | `upgrade head` → `downgrade base` → `upgrade head`, hamda modellar bilan migratsiyalar mos kelishi |
+
+Oxirgi tekshiruv muhim: modelga ustun qo'shib, migratsiya yozilmasa CI
+qizil bo'ladi — ilgari bunday o'zgarish jimgina prodga chiqib ketardi.
 
 ## Rollar
 

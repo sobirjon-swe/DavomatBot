@@ -6,7 +6,11 @@ from aiogram.types import InputMediaPhoto
 from database.models import Report
 from locales import t
 from utils.formatters import (
-    esc, format_datetime, format_district_name, format_partners, format_report_type
+    esc,
+    format_datetime,
+    format_district_name,
+    format_partners,
+    format_report_type,
 )
 
 logger = logging.getLogger(__name__)

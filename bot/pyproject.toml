@@ -1,0 +1,34 @@
+# Bu fayl paket e'lon qilmaydi — faqat pytest va ruff sozlamalarini saqlaydi.
+# Buyruqlar `bot/` katalogidan bajariladi: `pytest`, `ruff check .`
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+# Testlar `from database.crud import ...` kabi yozishi uchun bot/ sys.path da
+pythonpath = ["."]
+markers = [
+    "requires_pg: haqiqiy PostgreSQL kerak (SQLite vaqt mintaqasini saqlamaydi)",
+]
+
+[tool.ruff]
+line-length = 100
+# Ubuntu 22.04 da tizim Python i 3.10. StrEnum (3.11) kabi taklif berilmasligi
+# uchun ataylab py310 — deploy muhitidan yuqori sintaksis kirib qolmasin.
+target-version = "py310"
+exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes — ishlatilmagan import va o'zgaruvchilar
+    "W",   # ogohlantirishlar
+    "I",   # import tartibi
+    "B",   # bugbear — keng tarqalgan xatolar
+    "UP",  # eskirgan sintaksis
+]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "config", "database", "filters", "handlers",
+    "keyboards", "locales", "middlewares", "states", "utils",
+]

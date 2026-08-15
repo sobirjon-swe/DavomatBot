@@ -1,5 +1,6 @@
 from aiogram.types import InlineKeyboardMarkup, ReplyKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
+
 from locales import t
 
 
@@ -71,9 +72,12 @@ def confirm_deactivate_kb(lang: str, user_id: int) -> InlineKeyboardMarkup:
 
 def edit_employee_menu_kb(lang: str, user_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    builder.button(text=t(lang, "btn_edit_name"), callback_data=f"emp_edit_field:{user_id}:name")
-    builder.button(text=t(lang, "btn_edit_position"), callback_data=f"emp_edit_field:{user_id}:position")
-    builder.button(text=t(lang, "btn_edit_districts"), callback_data=f"emp_edit_field:{user_id}:districts")
+    for field, key in (
+        ("name", "btn_edit_name"),
+        ("position", "btn_edit_position"),
+        ("districts", "btn_edit_districts"),
+    ):
+        builder.button(text=t(lang, key), callback_data=f"emp_edit_field:{user_id}:{field}")
     builder.adjust(1)
     return builder.as_markup()
 
@@ -101,11 +105,18 @@ def view_photos_kb(lang: str, report_id: int) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def attendance_approve_kb(lang: str, report_id: int) -> InlineKeyboardMarkup:
+def attendance_approve_kb(lang: str, report_id: int, page: int = 1) -> InlineKeyboardMarkup:
+    """Tasdiqlash/rad etish tugmalari.
+
+    Sahifa raqami callback ichida yuriladi, shunda amaldan keyin admin
+    ro'yxatning o'sha joyida qoladi.
+    """
     builder = InlineKeyboardBuilder()
-    builder.button(text=t(lang, "btn_approve"), callback_data=f"att_approve:{report_id}")
-    builder.button(text=t(lang, "btn_reject"), callback_data=f"att_reject:{report_id}")
-    builder.adjust(2)
+    builder.button(text=t(lang, "btn_approve"), callback_data=f"att_approve:{report_id}:{page}")
+    builder.button(text=t(lang, "btn_reject"), callback_data=f"att_reject:{report_id}:{page}")
+    if page:
+        builder.button(text=t(lang, "btn_view_photos"), callback_data=f"rpt_photos:{report_id}")
+    builder.adjust(2, 1)
     return builder.as_markup()
 
 

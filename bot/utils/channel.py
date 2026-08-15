@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from aiogram import Bot
 from aiogram.types import InputMediaPhoto
@@ -11,7 +10,7 @@ from utils.formatters import build_report_caption
 logger = logging.getLogger(__name__)
 
 
-async def send_report_to_channel(bot: Bot, report: Report) -> tuple[bool, Optional[str]]:
+async def send_report_to_channel(bot: Bot, report: Report) -> tuple[bool, str | None]:
     """Tasdiqlangan hisobotni kanalga yuboradi.
 
     (muvaffaqiyat, xato_matni) juftligini qaytaradi. Ilgari funksiya

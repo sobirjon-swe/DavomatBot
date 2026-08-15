@@ -1,9 +1,8 @@
-from typing import Optional
 
 from aiogram.types import Message
 
 
-def text_of(message: Message) -> Optional[str]:
+def text_of(message: Message) -> str | None:
     """Xabardan matnni oladi; matn bo'lmasa (rasm, stiker, ovoz) None.
 
     Matn kutayotgan handlerlar ilgari `message.text.strip()` deb yozar va

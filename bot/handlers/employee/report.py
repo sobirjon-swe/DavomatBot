@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime
-from typing import Optional
 
 from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
@@ -8,21 +7,33 @@ from aiogram.types import CallbackQuery, Message
 
 import config
 from database.crud import (
-    add_report_partners, add_report_photos, create_report, get_all_active_employees,
-    get_all_districts, get_district_by_id, get_districts_by_ids, get_report_by_id,
-    get_user_district_ids
+    add_report_partners,
+    add_report_photos,
+    create_report,
+    get_all_active_employees,
+    get_all_districts,
+    get_district_by_id,
+    get_districts_by_ids,
+    get_report_by_id,
+    get_user_district_ids,
 )
 from database.models import ReportType, User
 from database.session import AsyncSessionLocal
 from keyboards.employee_kb import (
-    confirm_report_kb, location_kb, main_menu_kb, partners_kb, photos_kb,
-    plots_kb, remove_kb, report_subtype_kb, report_type_kb, single_district_kb
+    confirm_report_kb,
+    location_kb,
+    main_menu_kb,
+    partners_kb,
+    photos_kb,
+    plots_kb,
+    remove_kb,
+    report_subtype_kb,
+    report_type_kb,
+    single_district_kb,
 )
 from locales import t
 from states.report import ReportStates
-from utils.formatters import (
-    TASHKENT_TZ, esc, format_location_url, format_report_type
-)
+from utils.formatters import TASHKENT_TZ, esc, format_location_url, format_report_type
 from utils.messages import text_of
 from utils.notifications import notify_partners
 
@@ -32,7 +43,7 @@ router = Router()
 
 @router.message(F.text.in_(["📋 Ma'lumot berish", "📋 Подать отчёт"]))
 async def start_report(
-    message: Message, state: FSMContext, db_user: Optional[User] = None
+    message: Message, state: FSMContext, db_user: User | None = None
 ):
     if not db_user or not db_user.is_active:
         return

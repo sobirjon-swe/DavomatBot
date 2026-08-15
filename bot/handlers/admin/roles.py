@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
@@ -24,7 +23,7 @@ router.callback_query.filter(IsSuperAdmin())
 
 @router.message(F.text.in_(["👑 Rolni o'zgartirish", "👑 Изменить роли"]))
 async def roles_menu(
-    message: Message, state: FSMContext, db_user: Optional[User] = None
+    message: Message, state: FSMContext, db_user: User | None = None
 ):
     lang = db_user.language
 

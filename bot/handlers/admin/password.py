@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
@@ -23,7 +22,7 @@ router.callback_query.filter(IsAdmin())
 
 @router.message(F.text.in_(["🔑 Parolni o'zgartirish", "🔑 Изменить пароль"]))
 async def change_password_start(
-    message: Message, state: FSMContext, db_user: Optional[User] = None
+    message: Message, state: FSMContext, db_user: User | None = None
 ):
     lang = db_user.language
     await state.update_data(lang=lang, admin_id=db_user.id)

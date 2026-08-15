@@ -1,25 +1,40 @@
 import logging
-from typing import Optional
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 from database.crud import (
-    create_user, get_all_districts, get_all_users, get_user_by_id,
-    set_user_active, set_user_districts, update_user
+    count_users,
+    create_user,
+    get_all_districts,
+    get_all_users,
+    get_user_by_id,
+    set_user_active,
+    set_user_districts,
+    update_user,
 )
 from database.models import User, UserRole
 from database.session import AsyncSessionLocal
 from filters.roles import IsAdmin
 from keyboards.admin_kb import (
-    confirm_deactivate_kb, edit_employee_menu_kb, employee_actions_kb,
-    employees_section_kb
+    confirm_deactivate_kb,
+    edit_employee_menu_kb,
+    employee_actions_kb,
+    employees_section_kb,
 )
 from keyboards.employee_kb import districts_kb
+from keyboards.pagination import (
+    PER_PAGE,
+    clamp,
+    list_page_kb,
+    offset_of,
+    page_count,
+    with_back_button,
+)
 from locales import t
 from states.admin import AdminEmployeeStates
-from utils.formatters import format_role, format_user_districts
+from utils.formatters import esc, format_role, format_user_districts
 from utils.messages import text_of
 
 logger = logging.getLogger(__name__)
@@ -31,7 +46,7 @@ router.callback_query.filter(IsAdmin())
 
 @router.message(F.text.in_(["👥 Hodimlar", "👥 Сотрудники"]))
 async def employees_menu(
-    message: Message, state: FSMContext, db_user: Optional[User] = None
+    message: Message, state: FSMContext, db_user: User | None = None
 ):
     await message.answer(
         t(db_user.language, "employees_menu"),
@@ -39,39 +54,100 @@ async def employees_menu(
     )
 
 
-@router.callback_query(F.data == "emp:list")
-async def list_employees(
-    callback: CallbackQuery, state: FSMContext, db_user: Optional[User] = None
-):
-    lang = db_user.language
-    is_superadmin = db_user.role == UserRole.superadmin
+def _employee_card(lang: str, user: User) -> str:
+    return t(
+        lang, "employee_card",
+        full_name=esc(user.full_name),
+        position=esc(user.position),
+        role=format_role(lang, user.role.value),
+        districts=format_user_districts(user.user_districts, lang),
+        created_at=user.created_at.strftime("%d.%m.%Y"),
+        status=t(lang, "status_active" if user.is_active else "status_inactive"),
+    )
 
+
+async def _show_employees_page(callback: CallbackQuery, lang: str, page: int) -> None:
+    """Bitta xabarda bitta sahifa ko'rsatadi.
+
+    Ilgari har bir hodim alohida xabar bilan yuborilardi — hodimlar soni
+    o'sganda bu Telegram cheklovlariga urilardi.
+    """
     async with AsyncSessionLocal() as session:
-        users = await get_all_users(session)
+        total = await count_users(session)
+        pages = page_count(total)
+        page = clamp(page, pages)
+        users = await get_all_users(session, offset=offset_of(page), limit=PER_PAGE)
 
     if not users:
         await callback.message.edit_text(t(lang, "no_employees"))
-        await callback.answer()
         return
 
-    await callback.message.edit_text(t(lang, "employees_menu"))
+    lines = [t(lang, "employees_list_header", total=total), ""]
     for user in users:
-        card = t(
-            lang, "employee_card",
-            full_name=user.full_name,
-            position=user.position,
-            role=format_role(lang, user.role.value),
-            districts=format_user_districts(user.user_districts, lang),
-            created_at=user.created_at.strftime("%d.%m.%Y"),
-            status=t(lang, "status_active" if user.is_active else "status_inactive"),
-        )
-        await callback.message.answer(
-            card,
-            parse_mode="HTML",
-            reply_markup=employee_actions_kb(
-                lang, user.id, is_superadmin, user.is_active
+        holat = "" if user.is_active else f" ({t(lang, 'status_inactive')})"
+        lines.append(f"• <b>{esc(user.full_name)}</b> — {esc(user.position)}{holat}")
+
+    await callback.message.edit_text(
+        "\n".join(lines),
+        parse_mode="HTML",
+        reply_markup=list_page_kb(
+            open_prefix="emp_card",
+            page_prefix="emp_page",
+            page=page,
+            pages=pages,
+            items=[(u.id, u.full_name) for u in users],
+        ),
+    )
+
+
+@router.callback_query(F.data == "emp:list")
+async def list_employees(
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
+):
+    await _show_employees_page(callback, db_user.language, 1)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("emp_page:"))
+async def employees_page(
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
+):
+    await _show_employees_page(callback, db_user.language, int(callback.data.split(":")[1]))
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("emp_card:"))
+async def employee_card(
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
+):
+    lang = db_user.language
+    _, raw_id, raw_page = callback.data.split(":")
+
+    async with AsyncSessionLocal() as session:
+        user = await get_user_by_id(session, int(raw_id))
+
+    if not user:
+        await callback.answer(t(lang, "employee_not_found"), show_alert=True)
+        return
+
+    await callback.message.edit_text(
+        _employee_card(lang, user),
+        parse_mode="HTML",
+        reply_markup=with_back_button(
+            lang,
+            "emp_page",
+            int(raw_page),
+            employee_actions_kb(
+                lang, user.id, db_user.role == UserRole.superadmin, user.is_active
             ),
-        )
+        ),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "noop")
+async def ignore_noop(callback: CallbackQuery):
+    """Sahifa raqami va o'chirilgan o'q tugmalari."""
     await callback.answer()
 
 
@@ -79,7 +155,7 @@ async def list_employees(
 
 @router.callback_query(F.data.startswith("emp_off:"))
 async def deactivate_employee_confirm(
-    callback: CallbackQuery, state: FSMContext, db_user: Optional[User] = None
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
 ):
     lang = db_user.language
     if db_user.role != UserRole.superadmin:
@@ -103,7 +179,7 @@ async def deactivate_employee_confirm(
 
 @router.callback_query(F.data.startswith("emp_off_confirm:"))
 async def deactivate_employee(
-    callback: CallbackQuery, state: FSMContext, db_user: Optional[User] = None
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
 ):
     lang = db_user.language
     if db_user.role != UserRole.superadmin:
@@ -129,7 +205,7 @@ async def deactivate_employee(
 
 @router.callback_query(F.data.startswith("emp_on:"))
 async def activate_employee(
-    callback: CallbackQuery, state: FSMContext, db_user: Optional[User] = None
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
 ):
     lang = db_user.language
     if db_user.role != UserRole.superadmin:
@@ -151,7 +227,7 @@ async def activate_employee(
 
 @router.callback_query(F.data == "emp_off_cancel")
 async def deactivate_cancel(
-    callback: CallbackQuery, state: FSMContext, db_user: Optional[User] = None
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
 ):
     await callback.message.edit_text(t(db_user.language, "btn_cancel"))
     await callback.answer()
@@ -161,7 +237,7 @@ async def deactivate_cancel(
 
 @router.callback_query(F.data == "emp:add")
 async def add_employee_start(
-    callback: CallbackQuery, state: FSMContext, db_user: Optional[User] = None
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
 ):
     lang = db_user.language
     await state.update_data(lang=lang, mode="add")
@@ -266,7 +342,7 @@ async def admin_toggle_district(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("emp_edit:"))
 async def edit_employee_menu(
-    callback: CallbackQuery, state: FSMContext, db_user: Optional[User] = None
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
 ):
     lang = db_user.language
     user_id = int(callback.data.split(":")[1])
@@ -288,7 +364,7 @@ async def edit_employee_menu(
 
 @router.callback_query(F.data.startswith("emp_edit_field:"))
 async def edit_employee_field(
-    callback: CallbackQuery, state: FSMContext, db_user: Optional[User] = None
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
 ):
     lang = db_user.language
     _, raw_user_id, field = callback.data.split(":")

@@ -1,17 +1,26 @@
 import asyncio
 from datetime import date, datetime, time, timedelta
-from typing import Optional
 from zoneinfo import ZoneInfo
 
 import bcrypt
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.sql import Select
 
 from config import TIMEZONE
 from database.models import (
-    AccessAttempt, AccessPassword, District, Report, ReportPartner,
-    ReportPhoto, User, UserDistrict, UserRole, ReportType, utcnow
+    AccessAttempt,
+    AccessPassword,
+    District,
+    Report,
+    ReportPartner,
+    ReportPhoto,
+    ReportType,
+    User,
+    UserDistrict,
+    UserRole,
+    utcnow,
 )
 
 LOCAL_TZ = ZoneInfo(TIMEZONE)
@@ -34,9 +43,28 @@ def _day_bounds(day: date) -> tuple[datetime, datetime]:
     return start, start + timedelta(days=1)
 
 
+def _page(stmt: Select, offset: int, limit: int | None) -> Select:
+    """So'rovga LIMIT/OFFSET qo'shadi.
+
+    Sahifalash bazada bajariladi — ro'yxatni to'liq o'qib, keyin Pythonda
+    kesish hodimlar soni o'sganda ham xotirani, ham vaqtni behuda sarflaydi.
+    """
+    if offset:
+        stmt = stmt.offset(offset)
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    return stmt
+
+
+async def _count(session: AsyncSession, stmt: Select) -> int:
+    subquery = stmt.order_by(None).subquery()
+    result = await session.execute(select(func.count()).select_from(subquery))
+    return int(result.scalar_one())
+
+
 # ─── Users ─────────────────────────────────────────────────────────────────
 
-async def get_user_by_telegram_id(session: AsyncSession, telegram_id: int) -> Optional[User]:
+async def get_user_by_telegram_id(session: AsyncSession, telegram_id: int) -> User | None:
     result = await session.execute(
         select(User)
         .where(User.telegram_id == telegram_id)
@@ -47,7 +75,7 @@ async def get_user_by_telegram_id(session: AsyncSession, telegram_id: int) -> Op
     return result.scalar_one_or_none()
 
 
-async def get_user_by_id(session: AsyncSession, user_id: int) -> Optional[User]:
+async def get_user_by_id(session: AsyncSession, user_id: int) -> User | None:
     result = await session.execute(
         select(User)
         .where(User.id == user_id)
@@ -63,7 +91,7 @@ async def create_user(
     full_name: str,
     position: str,
     language: str,
-    telegram_id: Optional[int] = None,
+    telegram_id: int | None = None,
     role: UserRole = UserRole.employee,
 ) -> User:
     """Yangi hodim yaratadi.
@@ -88,7 +116,7 @@ async def update_user(
     session: AsyncSession,
     user_id: int,
     **kwargs,
-) -> Optional[User]:
+) -> User | None:
     user = await get_user_by_id(session, user_id)
     if not user:
         return None
@@ -111,7 +139,7 @@ async def get_unlinked_users(session: AsyncSession) -> list[User]:
 
 async def link_telegram_account(
     session: AsyncSession, user_id: int, telegram_id: int, language: str
-) -> Optional[User]:
+) -> User | None:
     """Oldindan yaratilgan hodim yozuvini Telegram hisobiga bog'laydi.
 
     Yozuv allaqachon band bo'lsa None qaytaradi — bu ikki kishi bitta
@@ -128,31 +156,37 @@ async def link_telegram_account(
 
 
 async def get_all_active_employees(session: AsyncSession) -> list[User]:
-    result = await session.execute(
-        select(User)
-        .where(User.is_active == True)
-        .options(
-            selectinload(User.user_districts).selectinload(UserDistrict.district)
-        )
-        .order_by(User.full_name)
+    return await get_all_users(session, only_active=True)
+
+
+def _users_stmt(only_active: bool) -> Select:
+    stmt = select(User)
+    if only_active:
+        stmt = stmt.where(User.is_active.is_(True))
+    return stmt.order_by(User.full_name)
+
+
+async def get_all_users(
+    session: AsyncSession,
+    *,
+    only_active: bool = False,
+    offset: int = 0,
+    limit: int | None = None,
+) -> list[User]:
+    stmt = _page(_users_stmt(only_active), offset, limit).options(
+        selectinload(User.user_districts).selectinload(UserDistrict.district)
     )
+    result = await session.execute(stmt)
     return list(result.scalars().all())
 
 
-async def get_all_users(session: AsyncSession) -> list[User]:
-    result = await session.execute(
-        select(User)
-        .options(
-            selectinload(User.user_districts).selectinload(UserDistrict.district)
-        )
-        .order_by(User.full_name)
-    )
-    return list(result.scalars().all())
+async def count_users(session: AsyncSession, *, only_active: bool = False) -> int:
+    return await _count(session, _users_stmt(only_active))
 
 
 async def set_user_active(
     session: AsyncSession, user_id: int, is_active: bool
-) -> Optional[User]:
+) -> User | None:
     """Hodimni faolsizlantiradi yoki tiklaydi.
 
     Yozuv o'chirilmaydi: `users` ni o'chirish `reports` ni ham kaskad
@@ -185,7 +219,7 @@ async def get_districts_by_ids(
     return list(result.scalars().all())
 
 
-async def get_district_by_id(session: AsyncSession, district_id: int) -> Optional[District]:
+async def get_district_by_id(session: AsyncSession, district_id: int) -> District | None:
     result = await session.execute(
         select(District).where(District.id == district_id)
     )
@@ -221,7 +255,7 @@ async def create_report(
     customer_name: str,
     location_lat: float,
     location_lon: float,
-    plots_count: Optional[int] = None,
+    plots_count: int | None = None,
 ) -> Report:
     report = Report(
         user_id=user_id,
@@ -253,7 +287,7 @@ async def add_report_photos(
         session.add(photo)
 
 
-async def get_report_by_id(session: AsyncSession, report_id: int) -> Optional[Report]:
+async def get_report_by_id(session: AsyncSession, report_id: int) -> Report | None:
     result = await session.execute(
         select(Report)
         .where(Report.id == report_id)
@@ -267,68 +301,105 @@ async def get_report_by_id(session: AsyncSession, report_id: int) -> Optional[Re
     return result.scalar_one_or_none()
 
 
-async def get_today_reports(session: AsyncSession) -> list[Report]:
-    start, end = _day_bounds(local_today())
-    result = await session.execute(
-        select(Report)
-        .where(Report.created_at >= start, Report.created_at < end)
-        .options(
-            selectinload(Report.user),
-            selectinload(Report.district),
-            selectinload(Report.partners).selectinload(ReportPartner.partner),
-            selectinload(Report.photos),
+_REPORT_RELATIONS = (
+    selectinload(Report.user),
+    selectinload(Report.district),
+    selectinload(Report.partners).selectinload(ReportPartner.partner),
+    selectinload(Report.photos),
+)
+
+
+def _reports_stmt(
+    *,
+    day: date | None = None,
+    user_id: int | None = None,
+    pending_only: bool = False,
+    newest_first: bool = True,
+) -> Select:
+    """Hisobotlar uchun umumiy so'rov.
+
+    `user_id` berilganda hodim ham muallif, ham sherik bo'lgan hisobotlar
+    qamrab olinadi.
+    """
+    stmt = select(Report)
+
+    if day is not None:
+        start, end = _day_bounds(day)
+        stmt = stmt.where(Report.created_at >= start, Report.created_at < end)
+
+    if user_id is not None:
+        partner_subq = select(ReportPartner.report_id).where(
+            ReportPartner.partner_id == user_id
         )
-        .order_by(Report.created_at.desc())
-    )
+        stmt = stmt.where(
+            or_(Report.user_id == user_id, Report.id.in_(partner_subq))
+        )
+
+    if pending_only:
+        stmt = stmt.where(
+            Report.is_confirmed.is_(False), Report.is_rejected.is_(False)
+        )
+
+    order = Report.created_at.desc() if newest_first else Report.created_at.asc()
+    return stmt.order_by(order)
+
+
+async def _fetch_reports(
+    session: AsyncSession, stmt: Select, offset: int, limit: int | None
+) -> list[Report]:
+    result = await session.execute(_page(stmt, offset, limit).options(*_REPORT_RELATIONS))
     return list(result.scalars().all())
+
+
+async def get_today_reports(
+    session: AsyncSession, *, offset: int = 0, limit: int | None = None
+) -> list[Report]:
+    return await _fetch_reports(
+        session, _reports_stmt(day=local_today()), offset, limit
+    )
+
+
+async def count_today_reports(session: AsyncSession) -> int:
+    return await _count(session, _reports_stmt(day=local_today()))
 
 
 async def get_reports_by_date_and_user(
-    session: AsyncSession, search_date: date, user_id: int
+    session: AsyncSession,
+    search_date: date,
+    user_id: int,
+    *,
+    offset: int = 0,
+    limit: int | None = None,
 ) -> list[Report]:
-    start, end = _day_bounds(search_date)
-    partner_subq = select(ReportPartner.report_id).where(
-        ReportPartner.partner_id == user_id
+    return await _fetch_reports(
+        session, _reports_stmt(day=search_date, user_id=user_id), offset, limit
     )
-    result = await session.execute(
-        select(Report)
-        .where(
-            Report.created_at >= start,
-            Report.created_at < end,
-            or_(
-                Report.user_id == user_id,
-                Report.id.in_(partner_subq),
-            ),
-        )
-        .options(
-            selectinload(Report.user),
-            selectinload(Report.district),
-            selectinload(Report.partners).selectinload(ReportPartner.partner),
-            selectinload(Report.photos),
-        )
-        .order_by(Report.created_at.desc())
-    )
-    return list(result.scalars().all())
 
 
-async def get_unconfirmed_reports(session: AsyncSession) -> list[Report]:
-    result = await session.execute(
-        select(Report)
-        .where(Report.is_confirmed.is_(False), Report.is_rejected.is_(False))
-        .options(
-            selectinload(Report.user),
-            selectinload(Report.district),
-            selectinload(Report.partners).selectinload(ReportPartner.partner),
-            selectinload(Report.photos),
-        )
-        .order_by(Report.created_at.asc())
+async def count_reports_by_date_and_user(
+    session: AsyncSession, search_date: date, user_id: int
+) -> int:
+    return await _count(session, _reports_stmt(day=search_date, user_id=user_id))
+
+
+async def get_unconfirmed_reports(
+    session: AsyncSession, *, offset: int = 0, limit: int | None = None
+) -> list[Report]:
+    return await _fetch_reports(
+        session,
+        _reports_stmt(pending_only=True, newest_first=False),
+        offset,
+        limit,
     )
-    return list(result.scalars().all())
+
+
+async def count_unconfirmed_reports(session: AsyncSession) -> int:
+    return await _count(session, _reports_stmt(pending_only=True))
 
 
 async def confirm_report(
     session: AsyncSession, report_id: int, confirmed_by: int
-) -> Optional[Report]:
+) -> Report | None:
     report = await get_report_by_id(session, report_id)
     if not report or report.is_confirmed or report.is_rejected:
         return None
@@ -341,7 +412,7 @@ async def confirm_report(
 
 async def reject_report(
     session: AsyncSession, report_id: int, rejected_by: int
-) -> Optional[Report]:
+) -> Report | None:
     """Hisobotni rad etadi.
 
     Yozuv o'chirilmaydi — kim, qachon rad etgani saqlanib qoladi.
@@ -358,11 +429,11 @@ async def reject_report(
 
 # ─── Access Password ─────────────────────────────────────────────────────────
 
-async def get_active_password(session: AsyncSession) -> Optional[AccessPassword]:
+async def get_active_password(session: AsyncSession) -> AccessPassword | None:
     result = await session.execute(
-        select(AccessPassword).where(AccessPassword.is_active == True).order_by(
-            AccessPassword.created_at.desc()
-        )
+        select(AccessPassword)
+        .where(AccessPassword.is_active.is_(True))
+        .order_by(AccessPassword.created_at.desc())
     )
     return result.scalars().first()
 
@@ -418,7 +489,7 @@ async def create_initial_password(
 
 async def get_access_attempt(
     session: AsyncSession, telegram_id: int
-) -> Optional[AccessAttempt]:
+) -> AccessAttempt | None:
     result = await session.execute(
         select(AccessAttempt).where(AccessAttempt.telegram_id == telegram_id)
     )

@@ -1,12 +1,9 @@
-from typing import Optional
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-from database.crud import (
-    get_all_districts, get_user_district_ids, set_user_districts, update_user
-)
+from database.crud import get_all_districts, get_user_district_ids, set_user_districts, update_user
 from database.models import User
 from database.session import AsyncSessionLocal
 from keyboards.employee_kb import districts_kb, language_kb, main_menu_kb, settings_kb
@@ -18,7 +15,7 @@ router = Router()
 
 @router.message(F.text.in_(["⚙️ Sozlamalar", "⚙️ Настройки"]))
 async def settings_menu(
-    message: Message, state: FSMContext, db_user: Optional[User] = None
+    message: Message, state: FSMContext, db_user: User | None = None
 ):
     if not db_user or not db_user.is_active:
         return
@@ -30,7 +27,7 @@ async def settings_menu(
 
 @router.callback_query(F.data == "settings:districts")
 async def edit_districts_start(
-    callback: CallbackQuery, state: FSMContext, db_user: Optional[User] = None
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
 ):
     if not db_user:
         await callback.answer(t("uz", "not_authorized"), show_alert=True)
@@ -52,7 +49,7 @@ async def edit_districts_start(
 
 @router.callback_query(SettingsStates.editing_districts, F.data.startswith("dist:"))
 async def toggle_district_settings(
-    callback: CallbackQuery, state: FSMContext, db_user: Optional[User] = None
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
 ):
     if not db_user:
         await callback.answer(t("uz", "not_authorized"), show_alert=True)
@@ -94,7 +91,7 @@ async def toggle_district_settings(
 
 @router.callback_query(F.data == "settings:language")
 async def change_language_start(
-    callback: CallbackQuery, state: FSMContext, db_user: Optional[User] = None
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
 ):
     if not db_user:
         await callback.answer(t("uz", "not_authorized"), show_alert=True)
@@ -111,7 +108,7 @@ async def change_language_start(
 
 @router.callback_query(SettingsStates.editing_language, F.data.startswith("lang:"))
 async def change_language(
-    callback: CallbackQuery, state: FSMContext, db_user: Optional[User] = None
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
 ):
     if not db_user:
         await callback.answer(t("uz", "not_authorized"), show_alert=True)

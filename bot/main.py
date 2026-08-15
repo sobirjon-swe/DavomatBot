@@ -11,16 +11,15 @@ from aiogram.types import BotCommand, ErrorEvent
 import config
 from database.crud import create_initial_password, get_active_password, seed_districts
 from database.session import AsyncSessionLocal, close_engine
-from middlewares.auth import AuthMiddleware
-
-from handlers.start import router as start_router
+from handlers.admin.attendance import router as attendance_router
+from handlers.admin.employees import router as employees_router
+from handlers.admin.password import router as password_router
+from handlers.admin.reports import router as admin_reports_router
+from handlers.admin.roles import router as roles_router
 from handlers.employee.report import router as report_router
 from handlers.employee.settings import router as settings_router
-from handlers.admin.employees import router as employees_router
-from handlers.admin.reports import router as admin_reports_router
-from handlers.admin.attendance import router as attendance_router
-from handlers.admin.password import router as password_router
-from handlers.admin.roles import router as roles_router
+from handlers.start import router as start_router
+from middlewares.auth import AuthMiddleware
 
 logger = logging.getLogger(__name__)
 

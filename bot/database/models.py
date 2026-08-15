@@ -1,10 +1,8 @@
 import enum
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
-from sqlalchemy import (
-    Boolean, DateTime, Enum, Float, ForeignKey,
-    Integer, String, BigInteger
-)
+
+from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -15,7 +13,7 @@ def utcnow() -> datetime:
     bazadagi barcha vaqtlar UTC va tz-aware bo'lishi uchun shu funksiya
     ishlatiladi.
     """
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Base(DeclarativeBase):
@@ -40,7 +38,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     # Admin qo'lda qo'shgan hodim hali botga kirmagan bo'ladi — o'shanda NULL.
     # Shu sababli unique cheklov NULL larni hisobga olmaydi (Postgres xatti-harakati).
-    telegram_id: Mapped[Optional[int]] = mapped_column(
+    telegram_id: Mapped[int | None] = mapped_column(
         BigInteger, unique=True, index=True, nullable=True
     )
     full_name: Mapped[str] = mapped_column(String(255))
@@ -105,20 +103,20 @@ class Report(Base):
     customer_name: Mapped[str] = mapped_column(String(500))
     location_lat: Mapped[float] = mapped_column(Float)
     location_lon: Mapped[float] = mapped_column(Float)
-    plots_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    plots_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     is_confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
-    confirmed_by: Mapped[Optional[int]] = mapped_column(
+    confirmed_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    confirmed_at: Mapped[Optional[datetime]] = mapped_column(
+    confirmed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     # Rad etilgan hisobot o'chirilmaydi — audit izi qolishi uchun belgilanadi.
     is_rejected: Mapped[bool] = mapped_column(Boolean, default=False)
-    rejected_by: Mapped[Optional[int]] = mapped_column(
+    rejected_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    rejected_at: Mapped[Optional[datetime]] = mapped_column(
+    rejected_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
@@ -168,7 +166,7 @@ class AccessPassword(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     password_hash: Mapped[str] = mapped_column(String(500))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_by: Mapped[Optional[int]] = mapped_column(
+    created_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(

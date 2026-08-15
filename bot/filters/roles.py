@@ -1,4 +1,3 @@
-from typing import Optional
 
 from aiogram.filters import BaseFilter
 from aiogram.types import TelegramObject
@@ -19,7 +18,7 @@ class HasRole(BaseFilter):
         self.roles = roles
 
     async def __call__(
-        self, event: TelegramObject, db_user: Optional[User] = None
+        self, event: TelegramObject, db_user: User | None = None
     ) -> bool:
         return (
             db_user is not None
