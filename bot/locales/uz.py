@@ -208,6 +208,43 @@ report_card = (
 )
 btn_view_photos = "📸 Rasmlarni ko'rish"
 btn_missing = "🚫 Hisobot bermaganlar"
+btn_export = "📥 Excel yuklab olish"
+
+# ─── Excel eksport ───────────────────────────────────────────────────────────
+export_choose_range = "📅 Qaysi davr uchun?"
+btn_range_today = "Bugun"
+btn_range_week = "Shu hafta"
+btn_range_month = "Shu oy"
+btn_range_custom = "Boshqa oraliq"
+export_enter_range = (
+    "📅 Sana oralig'ini kiriting:\n"
+    "<code>01.06.2026 - 30.06.2026</code>\n\n"
+    "Bitta kun uchun bitta sana yozing."
+)
+export_invalid_range = "❌ Noto'g'ri format. Masalan: 01.06.2026 - 30.06.2026"
+export_range_too_long = "❌ Oraliq {max} kundan oshmasligi kerak."
+export_empty = "📭 {range} uchun hisobot topilmadi."
+export_preparing = "⏳ Fayl tayyorlanmoqda..."
+export_caption = "📊 {range} — {count} ta hisobot"
+
+export_sheet_title = "Hisobotlar"
+col_no = "№"
+col_date = "Sana"
+col_time = "Vaqt"
+col_employee = "Hodim"
+col_position = "Lavozim"
+col_type = "Turi"
+col_district = "Hudud"
+col_customer = "Buyurtmachi"
+col_partners = "Sheriklar"
+col_plots = "Uchastkalar"
+col_status = "Holat"
+col_photos = "Rasmlar"
+col_location = "Joylashuv"
+
+status_pending = "Kutilmoqda"
+status_confirmed = "Tasdiqlangan"
+status_rejected = "Rad etilgan"
 
 missing_header = "🚫 <b>{date} — hisobot bermaganlar: {count} ta</b>"
 nobody_missing = "✅ {date} — barcha hodimlar hisobot berdi."

@@ -60,16 +60,37 @@ jobs:
             source .venv/bin/activate
             pip install -r requirements.txt
 
-            # Sxema o'zgarishlari Alembic orqali qo'llanadi.
-            # Eski bazada birinchi marta: alembic stamp 0001
+            # Alembic hali ulanmagan bo'lsa, `upgrade head` "jadval
+            # allaqachon mavjud" degan tushunarsiz xato beradi. Sababni
+            # oldindan aytamiz.
+            if ! alembic current 2>/dev/null | grep -q .; then
+              echo "::error::Alembic bu bazada ulanmagan."
+              echo "Bir marta bajaring: cd /home/DavomatBot/bot && source .venv/bin/activate && alembic stamp 0001"
+              exit 1
+            fi
             alembic upgrade head
 
-            systemctl restart davomat davomat-api
+            systemctl restart davomat
+
+            # davomat-api ixtiyoriy: Mini App hali sozlanmagan serverda
+            # bu xizmat bo'lmasligi mumkin va deploy shu sababli
+            # yiqilmasligi kerak.
+            if systemctl list-unit-files --no-legend | grep -q '^davomat-api\.service'; then
+              systemctl restart davomat-api
+              HAS_API=1
+            else
+              echo "::warning::davomat-api xizmati topilmadi — Mini App API o'tkazib yuborildi."
+              HAS_API=0
+            fi
 
             # Deploy yashil ko'rinib, xizmat o'chiq turmasligi uchun
             sleep 5
             systemctl is-active --quiet davomat
-            systemctl is-active --quiet davomat-api
-            curl -fsS http://127.0.0.1:8000/api/health > /dev/null
 
-            echo "Deploy tugadi: bot va API ishlayapti."
+            if [ "$HAS_API" = "1" ]; then
+              systemctl is-active --quiet davomat-api
+              curl -fsS http://127.0.0.1:8000/api/health > /dev/null
+              echo "Deploy tugadi: bot va API ishlayapti."
+            else
+              echo "Deploy tugadi: bot ishlayapti."
+            fi

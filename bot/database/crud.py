@@ -312,11 +312,16 @@ _REPORT_RELATIONS = (
 def _reports_stmt(
     *,
     day: date | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
     user_id: int | None = None,
     status: str | None = None,
     newest_first: bool = True,
 ) -> Select:
     """Hisobotlar uchun umumiy so'rov.
+
+    `day` — bitta kun; `date_from`/`date_to` — oraliq (ikkala chekka ham
+    kiradi). Oraliq mahalliy kun chegaralari bo'yicha hisoblanadi.
 
     `user_id` berilganda hodim ham muallif, ham sherik bo'lgan hisobotlar
     qamrab olinadi. `status` — "pending", "confirmed" yoki "rejected".
@@ -324,8 +329,13 @@ def _reports_stmt(
     stmt = select(Report)
 
     if day is not None:
-        start, end = _day_bounds(day)
-        stmt = stmt.where(Report.created_at >= start, Report.created_at < end)
+        date_from = date_to = day
+
+    if date_from is not None:
+        stmt = stmt.where(Report.created_at >= _day_bounds(date_from)[0])
+    if date_to is not None:
+        # Oxirgi kun ham to'liq kiradi: keyingi kun boshigacha
+        stmt = stmt.where(Report.created_at < _day_bounds(date_to)[1])
 
     if user_id is not None:
         partner_subq = select(ReportPartner.report_id).where(
@@ -352,14 +362,25 @@ async def list_reports(
     session: AsyncSession,
     *,
     day: date | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
     user_id: int | None = None,
     status: str | None = None,
     offset: int = 0,
     limit: int | None = None,
 ) -> list[Report]:
-    """Filtrlangan hisobotlar ro'yxati — API uchun umumiy kirish nuqtasi."""
+    """Filtrlangan hisobotlar ro'yxati — API va eksport uchun umumiy kirish."""
     return await _fetch_reports(
-        session, _reports_stmt(day=day, user_id=user_id, status=status), offset, limit
+        session,
+        _reports_stmt(
+            day=day,
+            date_from=date_from,
+            date_to=date_to,
+            user_id=user_id,
+            status=status,
+        ),
+        offset,
+        limit,
     )
 
 
@@ -367,11 +388,20 @@ async def count_reports(
     session: AsyncSession,
     *,
     day: date | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
     user_id: int | None = None,
     status: str | None = None,
 ) -> int:
     return await _count(
-        session, _reports_stmt(day=day, user_id=user_id, status=status)
+        session,
+        _reports_stmt(
+            day=day,
+            date_from=date_from,
+            date_to=date_to,
+            user_id=user_id,
+            status=status,
+        ),
     )
 
 

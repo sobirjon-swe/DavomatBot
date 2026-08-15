@@ -208,6 +208,43 @@ report_card = (
 )
 btn_view_photos = "📸 Просмотр фото"
 btn_missing = "🚫 Не сдали отчёт"
+btn_export = "📥 Выгрузить в Excel"
+
+# ─── Экспорт в Excel ─────────────────────────────────────────────────────────
+export_choose_range = "📅 За какой период?"
+btn_range_today = "Сегодня"
+btn_range_week = "Эта неделя"
+btn_range_month = "Этот месяц"
+btn_range_custom = "Другой период"
+export_enter_range = (
+    "📅 Введите период:\n"
+    "<code>01.06.2026 - 30.06.2026</code>\n\n"
+    "Для одного дня укажите одну дату."
+)
+export_invalid_range = "❌ Неверный формат. Например: 01.06.2026 - 30.06.2026"
+export_range_too_long = "❌ Период не должен превышать {max} дней."
+export_empty = "📭 За {range} отчётов не найдено."
+export_preparing = "⏳ Файл готовится..."
+export_caption = "📊 {range} — отчётов: {count}"
+
+export_sheet_title = "Отчёты"
+col_no = "№"
+col_date = "Дата"
+col_time = "Время"
+col_employee = "Сотрудник"
+col_position = "Должность"
+col_type = "Тип"
+col_district = "Район"
+col_customer = "Заказчик"
+col_partners = "Партнёры"
+col_plots = "Участки"
+col_status = "Статус"
+col_photos = "Фото"
+col_location = "Местоположение"
+
+status_pending = "Ожидает"
+status_confirmed = "Подтверждён"
+status_rejected = "Отклонён"
 
 missing_header = "🚫 <b>{date} — не сдали отчёт: {count}</b>"
 nobody_missing = "✅ {date} — все сотрудники сдали отчёт."

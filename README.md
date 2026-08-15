@@ -322,6 +322,23 @@ Bir nechta nozik joy:
   eslatma foydadan ko'ra chalg'itadi.
 * Botni bloklagan bitta hodim qolganlarga xabar borishiga xalaqit bermaydi.
 
+## Excel eksport
+
+`📊 Hisobotlar → 📥 Excel yuklab olish`. Tayyor oraliqlar (bugun / shu hafta /
+shu oy) yoki qo'lda: `01.06.2026 - 30.06.2026`. Bitta kun uchun bitta sana
+yozish kifoya; sanalar teskari yozilsa o'rin almashtiriladi.
+
+Fayl chatga hujjat sifatida yuboriladi — Mini App ichida yuklab olishni
+Telegram bloklaydi, chatdagi fayl esa saqlash va yuborish uchun qulay.
+
+Ustunlar: №, sana, vaqt, hodim, lavozim, turi, hudud, buyurtmachi,
+sheriklar, uchastkalar, holat, rasmlar soni, koordinatalar. Sarlavha
+qotirilgan va filtr yoqilgan.
+
+Vaqt faylda `Asia/Tashkent` bo'yicha yoziladi (bazada UTC turadi).
+Oraliq `MAX_EXPORT_DAYS` (366 kun) bilan cheklangan — cheklovsiz bitta
+so'rov butun bazani o'qib botni band qilib qo'yishi mumkin.
+
 ## Rollar
 
 | Rol | Imkoniyatlar |

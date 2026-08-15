@@ -90,6 +90,10 @@ MAX_REPORT_PHOTOS: int = 7
 # Hisobotlar sanasi shu vaqt mintaqasi bo'yicha hisoblanadi
 TIMEZONE: str = "Asia/Tashkent"
 
+# Excel eksport uchun eng uzun oraliq. Cheklov bo'lmasa bitta so'rov
+# butun bazani o'qib, botni uzoq vaqtga band qilib qo'yishi mumkin.
+MAX_EXPORT_DAYS: int = 366
+
 
 # ─── Kunlik eslatmalar ──────────────────────────────────────────────────────
 

@@ -1,9 +1,11 @@
-from datetime import date, datetime
+import asyncio
+from datetime import date, datetime, timedelta
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, InputMediaPhoto, Message
+from aiogram.types import BufferedInputFile, CallbackQuery, InputMediaPhoto, Message
 
+import config
 from database.crud import (
     count_reports_by_date_and_user,
     count_today_reports,
@@ -12,12 +14,18 @@ from database.crud import (
     get_report_by_id,
     get_reports_by_date_and_user,
     get_today_reports,
+    list_reports,
     local_today,
 )
 from database.models import User, UserRole
 from database.session import AsyncSessionLocal
 from filters.roles import IsAdmin
-from keyboards.admin_kb import employees_list_kb, reports_section_kb, view_photos_kb
+from keyboards.admin_kb import (
+    employees_list_kb,
+    export_range_kb,
+    reports_section_kb,
+    view_photos_kb,
+)
 from keyboards.pagination import (
     PER_PAGE,
     clamp,
@@ -27,7 +35,8 @@ from keyboards.pagination import (
     with_back_button,
 )
 from locales import t
-from states.admin import AdminReportStates
+from states.admin import AdminExportStates, AdminReportStates
+from utils.export import build_workbook, file_name
 from utils.formatters import build_report_caption, esc, format_datetime
 from utils.messages import text_of
 from utils.reminders import format_missing
@@ -171,6 +180,123 @@ async def missing_reports(
         format_missing(lang, today, employees), parse_mode="HTML"
     )
     await callback.answer()
+
+
+# ─── Excel eksport ──────────────────────────────────────────────────────────
+
+def parse_range(raw: str, today: date) -> tuple[date, date] | None:
+    """"01.06.2026 - 30.06.2026" yoki bitta sanani o'qiydi.
+
+    Sanalar teskari yozilgan bo'lsa o'rin almashtiriladi — foydalanuvchini
+    xato bilan qaytarishdan ko'ra shu ma'qul.
+    """
+    parts = [part.strip() for part in raw.replace("—", "-").split("-") if part.strip()]
+    if not parts or len(parts) > 2:
+        return None
+
+    try:
+        dates = [datetime.strptime(part, "%d.%m.%Y").date() for part in parts]
+    except ValueError:
+        return None
+
+    start, end = (dates[0], dates[-1])
+    if start > end:
+        start, end = end, start
+    return start, end
+
+
+def format_range(date_from: date, date_to: date) -> str:
+    if date_from == date_to:
+        return date_from.strftime("%d.%m.%Y")
+    return f"{date_from:%d.%m.%Y} - {date_to:%d.%m.%Y}"
+
+
+async def _send_export(message: Message, lang: str, date_from: date, date_to: date) -> None:
+    label = format_range(date_from, date_to)
+
+    async with AsyncSessionLocal() as session:
+        reports = await list_reports(session, date_from=date_from, date_to=date_to)
+
+    if not reports:
+        await message.answer(t(lang, "export_empty", range=label))
+        return
+
+    status = await message.answer(t(lang, "export_preparing"))
+
+    # openpyxl sinxron ishlaydi; katta oraliqda event loop qotib
+    # qolmasligi uchun alohida oqimga chiqariladi.
+    payload = await asyncio.to_thread(build_workbook, lang, reports)
+
+    await message.answer_document(
+        BufferedInputFile(payload, filename=file_name(date_from, date_to)),
+        caption=t(lang, "export_caption", range=label, count=len(reports)),
+    )
+    await status.delete()
+
+
+@router.callback_query(F.data == "rpt:export")
+async def export_start(
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
+):
+    lang = db_user.language
+    await state.update_data(lang=lang)
+    await callback.message.edit_text(
+        t(lang, "export_choose_range"), reply_markup=export_range_kb(lang)
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("exp:"))
+async def export_range(
+    callback: CallbackQuery, state: FSMContext, db_user: User | None = None
+):
+    lang = db_user.language
+    choice = callback.data.split(":")[1]
+    today = local_today()
+
+    if choice == "custom":
+        await callback.message.edit_text(t(lang, "export_enter_range"), parse_mode="HTML")
+        await state.set_state(AdminExportStates.entering_range)
+        await callback.answer()
+        return
+
+    if choice == "today":
+        date_from = date_to = today
+    elif choice == "week":
+        date_from, date_to = today - timedelta(days=today.weekday()), today
+    else:
+        date_from, date_to = today.replace(day=1), today
+
+    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.answer()
+    await _send_export(callback.message, lang, date_from, date_to)
+
+
+@router.message(AdminExportStates.entering_range)
+async def export_custom_range(
+    message: Message, state: FSMContext, db_user: User | None = None
+):
+    lang = db_user.language
+
+    raw = text_of(message)
+    if raw is None:
+        await message.answer(t(lang, "text_expected"))
+        return
+
+    parsed = parse_range(raw, local_today())
+    if parsed is None:
+        await message.answer(t(lang, "export_invalid_range"))
+        return
+
+    date_from, date_to = parsed
+    if (date_to - date_from).days + 1 > config.MAX_EXPORT_DAYS:
+        await message.answer(
+            t(lang, "export_range_too_long", max=config.MAX_EXPORT_DAYS)
+        )
+        return
+
+    await state.clear()
+    await _send_export(message, lang, date_from, date_to)
 
 
 # ─── Qidiruv ────────────────────────────────────────────────────────────────

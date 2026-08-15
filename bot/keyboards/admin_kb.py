@@ -105,7 +105,19 @@ def reports_section_kb(lang: str) -> InlineKeyboardMarkup:
     builder.button(text=t(lang, "btn_today_reports"), callback_data="rpt:today")
     builder.button(text=t(lang, "btn_missing"), callback_data="rpt:missing")
     builder.button(text=t(lang, "btn_search_reports"), callback_data="rpt:search")
+    builder.button(text=t(lang, "btn_export"), callback_data="rpt:export")
     builder.adjust(1)
+    return builder.as_markup()
+
+
+def export_range_kb(lang: str) -> InlineKeyboardMarkup:
+    """Eksport uchun tayyor oraliqlar — ko'p hollarda sana yozish shart emas."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text=t(lang, "btn_range_today"), callback_data="exp:today")
+    builder.button(text=t(lang, "btn_range_week"), callback_data="exp:week")
+    builder.button(text=t(lang, "btn_range_month"), callback_data="exp:month")
+    builder.button(text=t(lang, "btn_range_custom"), callback_data="exp:custom")
+    builder.adjust(3, 1)
     return builder.as_markup()
 
 
