@@ -47,7 +47,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           # Maxfiy qiymatlar buyruq satrida emas, muhit o'zgaruvchilarida
           # uzatiladi — shunda ular `ps` da ham ko'rinmaydi.
-          envs: BOT_TOKEN,SUPERADMIN_ID,CHANNEL_ID,DB_PASSWORD,BRANCH
+          envs: BOT_TOKEN,SUPERADMIN_ID,CHANNEL_ID,DB_PASSWORD,DATABASE_URL,BRANCH
           script: |
             set -euo pipefail
             bash /tmp/davomat-bootstrap/bootstrap.sh
@@ -56,5 +56,9 @@ jobs:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           SUPERADMIN_ID: ${{ secrets.SUPERADMIN_ID }}
           CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+          # Tayyor baza bo'lsa — to'liq manzil. Shunda skript baza va
+          # foydalanuvchi yaratmaydi.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Faqat DATABASE_URL berilmaganda ishlatiladi
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           BRANCH: ${{ inputs.branch }}

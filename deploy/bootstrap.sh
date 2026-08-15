@@ -28,36 +28,46 @@ if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
 # ─── 1. Tizim paketlari ─────────────────────────────────────────────────────
 
 log "Tizim paketlari"
-if ! have "$PYTHON" || ! have git || ! have psql; then
+NEED_PG=1
+[ -n "${DATABASE_URL:-}" ] && NEED_PG=0
+
+if ! have "$PYTHON" || ! have git || { [ "$NEED_PG" = "1" ] && ! have psql; }; then
   $SUDO apt-get update -qq
-  $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-    "$PYTHON" "$PYTHON-venv" git postgresql
+  PACKAGES="$PYTHON $PYTHON-venv git"
+  [ "$NEED_PG" = "1" ] && PACKAGES="$PACKAGES postgresql"
+  # shellcheck disable=SC2086
+  $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $PACKAGES
 else
   echo "Kerakli paketlar allaqachon bor."
 fi
 
-$SUDO systemctl enable --now postgresql
-
 # ─── 2. Baza ────────────────────────────────────────────────────────────────
 
-log "PostgreSQL foydalanuvchisi va bazasi"
-: "${DB_PASSWORD:?DB_PASSWORD berilmagan}"
-
-user_exists=$($SUDO -u postgres psql -tAc \
-  "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" || true)
-if [ "$user_exists" = "1" ]; then
-  echo "Foydalanuvchi '$DB_USER' bor — paroli yangilanadi."
-  $SUDO -u postgres psql -q -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+if [ -n "${DATABASE_URL:-}" ]; then
+  log "Baza: tayyor DATABASE_URL ishlatiladi"
+  echo "Foydalanuvchi va baza yaratilmaydi — ular allaqachon mavjud deb hisoblanadi."
 else
-  $SUDO -u postgres psql -q -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
-fi
+  log "PostgreSQL foydalanuvchisi va bazasi"
+  : "${DB_PASSWORD:?DB_PASSWORD yoki DATABASE_URL berilishi kerak}"
 
-db_exists=$($SUDO -u postgres psql -tAc \
-  "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" || true)
-if [ "$db_exists" = "1" ]; then
-  echo "Baza '$DB_NAME' allaqachon bor — tegilmaydi."
-else
-  $SUDO -u postgres psql -q -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+  $SUDO systemctl enable --now postgresql
+
+  user_exists=$($SUDO -u postgres psql -tAc \
+    "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'" || true)
+  if [ "$user_exists" = "1" ]; then
+    echo "Foydalanuvchi '$DB_USER' bor — paroli yangilanadi."
+    $SUDO -u postgres psql -q -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+  else
+    $SUDO -u postgres psql -q -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
+  fi
+
+  db_exists=$($SUDO -u postgres psql -tAc \
+    "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" || true)
+  if [ "$db_exists" = "1" ]; then
+    echo "Baza '$DB_NAME' allaqachon bor — tegilmaydi."
+  else
+    $SUDO -u postgres psql -q -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
+  fi
 fi
 
 # ─── 3. Repo ────────────────────────────────────────────────────────────────
@@ -91,16 +101,21 @@ else
   : "${SUPERADMIN_ID:?SUPERADMIN_ID berilmagan}"
   : "${CHANNEL_ID:?CHANNEL_ID berilmagan}"
 
-  # Parol URL ichiga tushadi: `@`, `:`, `/`, `#` kabi belgilar ajratuvchi
-  # sifatida o'qilib ulanishni buzardi, shuning uchun kodlanadi.
-  # Qiymat argument emas, muhit orqali beriladi — `ps` da ko'rinmasin.
-  DB_PASSWORD_ENC=$("$PYTHON" -c \
-    'import os, urllib.parse; print(urllib.parse.quote(os.environ["DB_PASSWORD"], safe=""))')
+  if [ -n "${DATABASE_URL:-}" ]; then
+    DB_URL="$DATABASE_URL"
+  else
+    # Parol URL ichiga tushadi: `@`, `:`, `/`, `#` kabi belgilar ajratuvchi
+    # sifatida o'qilib ulanishni buzardi, shuning uchun kodlanadi.
+    # Qiymat argument emas, muhit orqali beriladi — `ps` da ko'rinmasin.
+    DB_PASSWORD_ENC=$("$PYTHON" -c \
+      'import os, urllib.parse; print(urllib.parse.quote(os.environ["DB_PASSWORD"], safe=""))')
+    DB_URL="postgresql+asyncpg://$DB_USER:$DB_PASSWORD_ENC@127.0.0.1:5432/$DB_NAME"
+  fi
 
   umask 077
   cat > .env <<ENVFILE
 BOT_TOKEN=$BOT_TOKEN
-DATABASE_URL=postgresql+asyncpg://$DB_USER:$DB_PASSWORD_ENC@localhost:5432/$DB_NAME
+DATABASE_URL=$DB_URL
 SUPERADMIN_ID=$SUPERADMIN_ID
 CHANNEL_ID=$CHANNEL_ID
 LOG_LEVEL=INFO
@@ -113,9 +128,27 @@ chmod 600 .env
 
 log "Migratsiyalar"
 current=$(./.venv/bin/alembic current 2>/dev/null | tr -d '[:space:]' || true)
-tables=$($SUDO -u postgres psql -d "$DB_NAME" -tAc \
-  "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'" \
-  || echo 0)
+
+# Jadvallar sonini ilovaning o'z ulanishi orqali sanaymiz. `psql` orqali
+# emas: baza boshqa serverda yoki boshqa nom ostida bo'lishi mumkin,
+# .env dagi manzil esa doim to'g'ri.
+tables=$(./.venv/bin/python - <<'PY' 2>/dev/null || echo 0
+import asyncio
+from sqlalchemy import text
+from database.session import close_engine, engine
+
+async def main():
+    async with engine.connect() as conn:
+        result = await conn.execute(text(
+            "SELECT count(*) FROM information_schema.tables "
+            "WHERE table_schema='public' AND table_name <> 'alembic_version'"
+        ))
+        print(result.scalar())
+    await close_engine()
+
+asyncio.run(main())
+PY
+)
 
 if [ -n "$current" ]; then
   echo "Alembic ulangan ($current) — yangilanadi."
