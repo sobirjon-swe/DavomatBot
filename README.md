@@ -12,17 +12,27 @@ Texnologiyalar: Python 3.10+, aiogram 3, SQLAlchemy 2 (async), PostgreSQL, Alemb
 
 ```
 bot/
-  main.py            kirish nuqtasi: dispatcher, middleware, routerlar
+  main.py            bot kirish nuqtasi: dispatcher, middleware, routerlar
+  api_server.py      API kirish nuqtasi (uvicorn)
   config.py          .env dan sozlamalar + tekshiruv, tumanlar ro'yxati
   database/          models.py (sxema), crud.py (so'rovlar), session.py (engine)
+  api/               Mini App uchun HTTP qatlami
+    security.py        initData HMAC tekshiruvi — ishonch nuqtasi
+    deps.py            sessiya, joriy foydalanuvchi, rol talablari
+    schemas.py         so'rov/javob modellari
+    routes_*.py        endpointlar
   handlers/          start.py, employee/, admin/
-  keyboards/         inline va reply klaviaturalar
+  keyboards/         inline va reply klaviaturalar, sahifalash
   filters/           rolga asoslangan ruxsat filtrlari
   middlewares/       auth.py — har bir yangilanishga db_user biriktiradi
   locales/           uz.py, ru.py va t() funksiyasi
   utils/             formatters, notifications, channel, messages
   alembic/           migratsiyalar
+  tests/             pytest
 ```
+
+Bot va API alohida jarayonlar: biri qulasa ikkinchisi ishlab turaveradi.
+Umumiy qismi — `config`, `database` va `utils`.
 
 ## Ishga tushirish
 
@@ -88,12 +98,89 @@ Yangi migratsiya yaratish:
 alembic revision --autogenerate -m "nima o'zgardi"
 ```
 
+## Mini App API
+
+Telegram Mini App uchun HTTP qatlami. Bot bilan bir xil `config`, `database`
+va `utils` modullarini ishlatadi, lekin **alohida jarayonda** ishlaydi.
+
+```bash
+cd bot
+python api_server.py          # yoki: uvicorn api.app:app --port 8000
+```
+
+Interaktiv hujjat: `http://127.0.0.1:8000/api/docs`
+
+### Autentifikatsiya
+
+Mini App brauzerda ishlaydi, ya'ni u yuborgan hamma narsani foydalanuvchi
+o'zgartira oladi. Yagona ishonchli narsa — Telegram bot tokeni bilan qo'ygan
+HMAC imzosi. Har bir so'rovda `initData` yuboriladi va qayta tekshiriladi:
+
+```
+Authorization: tma <initData>
+```
+
+Alohida sessiya tokeni (JWT) **ataylab berilmaydi**: HMAC hisobi
+mikrosoniyalar oladi, lekin o'g'irlanishi mumkin bo'lgan uzoq muddatli token
+umuman paydo bo'lmaydi. Tekshiruv `api/security.py` da, unga 17 ta test
+yozilgan (`tests/test_api_security.py`) — jumladan imzodan keyin `user.id`
+almashtirilgan, boshqa token bilan imzolangan va muddati o'tgan holatlar.
+
+### Endpointlar
+
+| Metod | Yo'l | Kim |
+|---|---|---|
+| GET | `/api/me` | hamma |
+| PATCH | `/api/me/language` | hamma |
+| PUT | `/api/me/districts` | hamma |
+| GET | `/api/districts` | hamma |
+| GET | `/api/reports?day=&user_id=&status=&page=` | hodim faqat o'zinikini |
+| GET | `/api/reports/{id}` | qatnashganlar va admin |
+| POST | `/api/reports` | hodim |
+| POST | `/api/reports/{id}/approve` | admin |
+| POST | `/api/reports/{id}/reject` | admin |
+| POST | `/api/photos` | hamma |
+| GET | `/api/employees?page=&per_page=` | admin |
+| POST | `/api/employees` | admin |
+| PATCH | `/api/employees/{id}` | admin |
+| POST | `/api/employees/{id}/deactivate` \| `/activate` | superadmin |
+| PATCH | `/api/employees/{id}/role` | superadmin |
+
+Xatolar bir xil ko'rinishda qaytadi, frontend `code` bo'yicha ish tutadi:
+
+```json
+{"detail": {"code": "not_registered", "message": "Avval botda ro'yxatdan o'ting"}}
+```
+
+### Rasmlar
+
+Mini App Telegram `file_id` ishlab chiqara olmaydi — u faqat bayt yuboradi.
+Shuning uchun `POST /api/photos` rasmni yopiq **ombor chatiga**
+(`STORAGE_CHAT_ID`) yuboradi, Telegram `file_id` qaytaradi va bazaga o'sha
+yoziladi. Natijada kanalga chiqarish mantig'i umuman o'zgarmaydi.
+
+Yopiq kanal yarating, botni admin qilib qo'shing va uning ID sini
+`STORAGE_CHAT_ID` ga yozing.
+
+### Prodda
+
+```nginx
+server {
+    server_name davomat.example.uz;
+    location /api/ { proxy_pass http://127.0.0.1:8000; }
+    location / { root /var/www/davomat; try_files $uri /index.html; }
+}
+```
+
+HTTPS majburiy (Telegram Mini App HTTP manzilni ochmaydi) — `certbot --nginx`.
+Keyin @BotFather da `/newapp` orqali `WEBAPP_URL` ni ko'rsating.
+
 ## Testlar va linter
 
 ```bash
 cd bot
 pip install -r requirements-dev.txt
-pytest          # 69 ta test, ~10 soniya
+pytest          # 120 ta test, ~13 soniya
 ruff check .
 ```
 

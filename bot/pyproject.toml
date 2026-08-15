@@ -27,6 +27,18 @@ select = [
     "UP",  # eskirgan sintaksis
 ]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI da bu chaqiruvlar ataylab argument sukut qiymatida turadi —
+# freymvork ularni aynan shu joydan o'qiydi.
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Depends",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Header",
+    "fastapi.Query",
+]
+
 [tool.ruff.lint.isort]
 known-first-party = [
     "config", "database", "filters", "handlers",

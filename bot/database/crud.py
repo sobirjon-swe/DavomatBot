@@ -313,13 +313,13 @@ def _reports_stmt(
     *,
     day: date | None = None,
     user_id: int | None = None,
-    pending_only: bool = False,
+    status: str | None = None,
     newest_first: bool = True,
 ) -> Select:
     """Hisobotlar uchun umumiy so'rov.
 
     `user_id` berilganda hodim ham muallif, ham sherik bo'lgan hisobotlar
-    qamrab olinadi.
+    qamrab olinadi. `status` — "pending", "confirmed" yoki "rejected".
     """
     stmt = select(Report)
 
@@ -335,13 +335,44 @@ def _reports_stmt(
             or_(Report.user_id == user_id, Report.id.in_(partner_subq))
         )
 
-    if pending_only:
+    if status == "pending":
         stmt = stmt.where(
             Report.is_confirmed.is_(False), Report.is_rejected.is_(False)
         )
+    elif status == "confirmed":
+        stmt = stmt.where(Report.is_confirmed.is_(True))
+    elif status == "rejected":
+        stmt = stmt.where(Report.is_rejected.is_(True))
 
     order = Report.created_at.desc() if newest_first else Report.created_at.asc()
     return stmt.order_by(order)
+
+
+async def list_reports(
+    session: AsyncSession,
+    *,
+    day: date | None = None,
+    user_id: int | None = None,
+    status: str | None = None,
+    offset: int = 0,
+    limit: int | None = None,
+) -> list[Report]:
+    """Filtrlangan hisobotlar ro'yxati — API uchun umumiy kirish nuqtasi."""
+    return await _fetch_reports(
+        session, _reports_stmt(day=day, user_id=user_id, status=status), offset, limit
+    )
+
+
+async def count_reports(
+    session: AsyncSession,
+    *,
+    day: date | None = None,
+    user_id: int | None = None,
+    status: str | None = None,
+) -> int:
+    return await _count(
+        session, _reports_stmt(day=day, user_id=user_id, status=status)
+    )
 
 
 async def _fetch_reports(
@@ -387,14 +418,14 @@ async def get_unconfirmed_reports(
 ) -> list[Report]:
     return await _fetch_reports(
         session,
-        _reports_stmt(pending_only=True, newest_first=False),
+        _reports_stmt(status="pending", newest_first=False),
         offset,
         limit,
     )
 
 
 async def count_unconfirmed_reports(session: AsyncSession) -> int:
-    return await _count(session, _reports_stmt(pending_only=True))
+    return await _count(session, _reports_stmt(status="pending"))
 
 
 async def confirm_report(

@@ -35,6 +35,35 @@ REDIS_URL: str = _get_str("REDIS_URL")
 INITIAL_ACCESS_PASSWORD: str = _get_str("INITIAL_ACCESS_PASSWORD")
 LOG_LEVEL: str = _get_str("LOG_LEVEL", "INFO").upper()
 
+# ─── Mini App API ───────────────────────────────────────────────────────────
+
+API_HOST: str = _get_str("API_HOST", "127.0.0.1")
+API_PORT: int = _get_int("API_PORT", 8000)
+
+# Mini App ochiladigan HTTPS manzil (BotFather ga ham shu kiritiladi)
+WEBAPP_URL: str = _get_str("WEBAPP_URL")
+
+# Brauzerdan kelgan initData qancha vaqt haqiqiy hisoblanadi.
+# Telegram uni ilova ochilganda yangilaydi; eski qiymatni qayta ishlatishning
+# oldini olish uchun oraliq qisqa tutiladi.
+INITDATA_TTL_SECONDS: int = _get_int("INITDATA_TTL_SECONDS", 3600)
+
+# Mini App yuklagan rasmlar avval shu yopiq chatga yuboriladi — Telegram
+# file_id qaytaradi va kanalga chiqarish mantig'i o'zgarishsiz qoladi.
+STORAGE_CHAT_ID: int = _get_int("STORAGE_CHAT_ID")
+
+# Faqat lokal ishlab chiqish uchun. Mini App Telegram ichida ochilgani uchun
+# prodda bo'sh qoldirilsa ham ishlayveradi.
+CORS_ORIGINS: list[str] = [
+    origin.strip() for origin in _get_str("CORS_ORIGINS").split(",") if origin.strip()
+]
+
+# Bitta rasm uchun eng katta hajm (Telegram cheklovi 10 MB)
+MAX_PHOTO_BYTES: int = 10 * 1024 * 1024
+ALLOWED_PHOTO_TYPES: frozenset[str] = frozenset(
+    {"image/jpeg", "image/png", "image/webp"}
+)
+
 # Parolni ketma-ket necha marta xato kiritgach foydalanuvchi bloklanadi
 MAX_PASSWORD_ATTEMPTS: int = 3
 
