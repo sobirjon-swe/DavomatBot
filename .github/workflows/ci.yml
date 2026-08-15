@@ -62,6 +62,24 @@ jobs:
         run: pytest -q
         working-directory: bot
 
+  webapp:
+    name: Mini App
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: pnpm ni yoqish
+        run: corepack enable
+      - name: Bog'liqliklar
+        run: pnpm install --frozen-lockfile
+        working-directory: webapp
+      - name: Tiplar va build
+        # `build` ichida `tsc -b` bor, ya'ni tip xatolari ham shu yerda chiqadi
+        run: pnpm run build
+        working-directory: webapp
+
   migrations:
     name: Migratsiyalar
     runs-on: ubuntu-latest

@@ -175,6 +175,49 @@ server {
 HTTPS majburiy (Telegram Mini App HTTP manzilni ochmaydi) — `certbot --nginx`.
 Keyin @BotFather da `/newapp` orqali `WEBAPP_URL` ni ko'rsating.
 
+## Mini App (frontend)
+
+`webapp/` — React 19 + TypeScript + Vite + Tailwind + shadcn/ui +
+`@telegram-apps/sdk-react`.
+
+```bash
+cd webapp
+corepack enable            # pnpm ni yoqadi
+pnpm install
+pnpm dev                   # http://localhost:5173
+pnpm build                 # dist/ ga yig'adi (ichida tsc -b ham bor)
+```
+
+### Mavzu
+
+Ranglar Telegramdan keladi: SDK `--tg-theme-*` CSS o'zgaruvchilarini
+hujjatga qo'yadi, `src/index.css` ularni ilova tokenlariga ulaydi,
+`tailwind.config.js` esa shadcn nomlariga (`bg-background`, `text-primary`
+va h.k.) bog'laydi. Natijada ilova foydalanuvchining kunduzgi/tungi
+rejimiga hech qanday qo'shimcha kodsiz moslashadi.
+
+Shu sababli shadcn ning odatdagi `hsl(var(--token))` sxemasi o'rniga
+tokenlar to'g'ridan-to'g'ri rang qiymati sifatida ishlatilgan — Telegram
+ranglarni HEX ko'rinishida beradi.
+
+### Autentifikatsiya
+
+`useRawInitData()` bergan satr har bir so'rovda `Authorization: tma ...`
+sarlavhasida yuboriladi. Brauzerda (Telegramdan tashqarida) initData
+bo'lmaydi — lokal sinov uchun `.env.local` ga `VITE_DEV_INIT_DATA` yozing.
+
+### Nima tayyor
+
+| Ekran | Holat |
+|---|---|
+| Hisobotlar ro'yxati (filtr: kutilmoqda / tasdiqlangan / hammasi) | tayyor |
+| Hisobot kartochkasi, xaritada ochish, tasdiqlash/rad etish | tayyor |
+| Hodimlar ro'yxati (admin) | tayyor |
+| Hisobot yuborish formasi | keyingi bosqich |
+
+Hodim faqat o'zi qatnashgan hisobotlarni ko'radi — bu serverda
+majburlanadi, frontend faqat shunga mos ko'rinish beradi.
+
 ## Testlar va linter
 
 ```bash
