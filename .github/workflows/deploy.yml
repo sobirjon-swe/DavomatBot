@@ -87,13 +87,18 @@ jobs:
             fi
             alembic upgrade head
 
-            systemctl restart davomat
+            # Deploy foydalanuvchisi root bo'lmasligi mumkin. Unga faqat
+            # shu ikki xizmatni qayta ishga tushirish huquqi berilsa yetadi
+            # (deploy/README.md dagi sudoers qatoriga qarang).
+            if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
+
+            $SUDO systemctl restart davomat
 
             # davomat-api ixtiyoriy: Mini App hali sozlanmagan serverda
             # bu xizmat bo'lmasligi mumkin va deploy shu sababli
             # yiqilmasligi kerak.
             if systemctl list-unit-files --no-legend | grep -q '^davomat-api\.service'; then
-              systemctl restart davomat-api
+              $SUDO systemctl restart davomat-api
               HAS_API=1
             else
               echo "::warning::davomat-api xizmati topilmadi — Mini App API o'tkazib yuborildi."

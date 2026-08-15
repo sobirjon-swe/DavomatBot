@@ -149,15 +149,30 @@ xato bilan ishga tushmasa, birinchi bo'lib `MemoryDenyWriteExecute=true` ni
 o'chirib ko'ring — u ba'zi C/Rust kengaytmalari bilan ziddiyatga kirishi
 mumkin. Sababni `journalctl -u davomat -n 50` ko'rsatadi.
 
-Deploy workflow `systemctl restart` ni `sudo` siz chaqiradi. Deploy
-foydalanuvchisi `root` bo'lmasa, unga ruxsat bering:
+### Deploy uchun tor sudoers qoidasi
+
+Deploy workflow'i root bo'lmagan foydalanuvchi ostida ham ishlaydi — u
+`sudo` ni faqat kerak bo'lganda chaqiradi. To'liq huquq bermang, faqat
+kerakli buyruqlarga ruxsat bering:
 
 ```bash
-# /etc/sudoers.d/davomat-deploy
-deployuser ALL=(root) NOPASSWD: /bin/systemctl restart davomat davomat-api
+# /etc/sudoers.d/90-davomat-deploy   (chmod 440)
+deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart davomat, \
+                            /usr/bin/systemctl restart davomat-api, \
+                            /usr/bin/mkdir -p /var/www/davomat, \
+                            /usr/bin/chown * /var/www/davomat
 ```
 
-va workflow dagi `systemctl restart` ni `sudo systemctl restart` ga o'zgartiring.
+`deploy` o'rniga `VPS_USER` dagi nomni yozing. `systemctl` yo'lini
+tekshiring: `command -v systemctl` (odatda `/usr/bin/systemctl`, ba'zi
+tizimlarda `/bin/systemctl`).
+
+Sir sizib chiqqan taqdirda ham hujumchi qila oladigan yagona narsa —
+xizmatni qayta ishga tushirish.
+
+**Bootstrap** boshqa masala: u paket o'rnatadi, foydalanuvchi yaratadi va
+systemd unit qo'yadi, ya'ni to'liq huquq talab qiladi. Uni bir marta root
+sifatida bajarish eng sodda yo'l.
 
 ## 5. nginx va sertifikat
 

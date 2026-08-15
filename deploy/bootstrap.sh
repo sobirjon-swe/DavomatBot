@@ -14,7 +14,10 @@ APP_DIR="${APP_DIR:-/home/DavomatBot}"
 BOT_DIR="$APP_DIR/bot"
 REPO="${REPO:-https://github.com/sobirjon-swe/DavomatBot.git}"
 BRANCH="${BRANCH:-main}"
-PYTHON="${PYTHON:-python3.11}"
+# Python versiyasi qat'iy belgilanmaydi: Ubuntu 22.04 da 3.10, 24.04 da
+# 3.12 keladi va aniq versiyani talab qilish deadsnakes PPA ni majburlardi.
+# Loyiha 3.10+ da ishlaydi, shuning uchun mavjudini topamiz.
+PYTHON="${PYTHON:-}"
 
 DB_NAME="${DB_NAME:-davomat_db}"
 DB_USER="${DB_USER:-davomat}"
@@ -27,18 +30,44 @@ if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
 
 # ─── 1. Tizim paketlari ─────────────────────────────────────────────────────
 
+find_python() {
+  for candidate in python3.13 python3.12 python3.11 python3.10 python3; do
+    have "$candidate" || continue
+    if "$candidate" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null
+    then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
 log "Tizim paketlari"
 NEED_PG=1
 [ -n "${DATABASE_URL:-}" ] && NEED_PG=0
 
-if ! have "$PYTHON" || ! have git || { [ "$NEED_PG" = "1" ] && ! have psql; }; then
+[ -n "$PYTHON" ] || PYTHON=$(find_python || true)
+
+if [ -z "$PYTHON" ] || ! have git || { [ "$NEED_PG" = "1" ] && ! have psql; }; then
   $SUDO apt-get update -qq
-  PACKAGES="$PYTHON $PYTHON-venv git"
+  # Aniq versiya emas, umumiy paketlar: distributiv o'zinikini beradi
+  PACKAGES="python3 python3-venv git"
   [ "$NEED_PG" = "1" ] && PACKAGES="$PACKAGES postgresql"
   # shellcheck disable=SC2086
   $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $PACKAGES
-else
-  echo "Kerakli paketlar allaqachon bor."
+  [ -n "$PYTHON" ] || PYTHON=$(find_python || true)
+fi
+
+if [ -z "$PYTHON" ]; then
+  echo "XATO: Python 3.10 yoki yangirog'i topilmadi."
+  exit 1
+fi
+echo "Python: $PYTHON ($("$PYTHON" --version))"
+
+# venv moduli alohida paketda bo'lishi mumkin (Debian/Ubuntu)
+if ! "$PYTHON" -c "import venv" 2>/dev/null; then
+  $SUDO apt-get update -qq
+  $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -qq python3-venv
 fi
 
 # ─── 2. Baza ────────────────────────────────────────────────────────────────
