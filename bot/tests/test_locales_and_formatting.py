@@ -1,7 +1,7 @@
 import ast
 import pathlib
 import re
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from locales import ru, t, uz
 from utils.formatters import esc, format_datetime, format_user_districts
@@ -95,7 +95,7 @@ def test_ekranlash_oddiy_matnga_tegmaydi():
 
 
 def test_vaqt_toshkent_mintaqasida_korsatiladi():
-    utc_vaqt = datetime(2026, 6, 5, 6, 30, tzinfo=UTC)
+    utc_vaqt = datetime(2026, 6, 5, 6, 30, tzinfo=timezone.utc)
 
     assert format_datetime(utc_vaqt) == "05.06.2026 | 11:30"
 

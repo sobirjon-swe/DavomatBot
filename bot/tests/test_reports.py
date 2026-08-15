@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
@@ -46,11 +46,11 @@ def test_kun_oraligi_yarim_ochiq():
     "utc_vaqt, kutilgan_kun",
     [
         # Toshkent = UTC+5. UTC 4-iyun 20:00 = Toshkent 5-iyun 01:00
-        (datetime(2026, 6, 4, 20, 0, tzinfo=UTC), date(2026, 6, 5)),
+        (datetime(2026, 6, 4, 20, 0, tzinfo=timezone.utc), date(2026, 6, 5)),
         # UTC 5-iyun 18:59 = Toshkent 5-iyun 23:59
-        (datetime(2026, 6, 5, 18, 59, tzinfo=UTC), date(2026, 6, 5)),
+        (datetime(2026, 6, 5, 18, 59, tzinfo=timezone.utc), date(2026, 6, 5)),
         # UTC 5-iyun 19:00 = Toshkent 6-iyun 00:00 -> keyingi kun
-        (datetime(2026, 6, 5, 19, 0, tzinfo=UTC), date(2026, 6, 6)),
+        (datetime(2026, 6, 5, 19, 0, tzinfo=timezone.utc), date(2026, 6, 6)),
     ],
 )
 def test_utc_vaqt_togri_toshkent_kuniga_tushadi(utc_vaqt, kutilgan_kun):
@@ -67,7 +67,7 @@ async def test_sana_boyicha_qidiruv_toshkent_kunini_oladi(session, employee, dis
     Bu testga TIMESTAMPTZ kerak: SQLite vaqt mintaqasini saqlamaydi va
     taqqoslash noto'g'ri chiqadi. Shuning uchun faqat PostgreSQL da ishlaydi.
     """
-    kechqurun = datetime(2026, 6, 4, 20, 30, tzinfo=UTC)  # Toshkent 5-iyun 01:30
+    kechqurun = datetime(2026, 6, 4, 20, 30, tzinfo=timezone.utc)  # Toshkent 5-iyun 01:30
     await _make_report(session, employee.id, districts[0].id, created_at=kechqurun)
 
     besh_iyun = await crud.get_reports_by_date_and_user(session, date(2026, 6, 5), employee.id)

@@ -1,5 +1,5 @@
 import enum
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import BigInteger, Boolean, DateTime, Enum, Float, ForeignKey, Integer, String
@@ -13,7 +13,9 @@ def utcnow() -> datetime:
     bazadagi barcha vaqtlar UTC va tz-aware bo'lishi uchun shu funksiya
     ishlatiladi.
     """
-    return datetime.now(UTC)
+    # `datetime.UTC` emas: u Python 3.11+ da paydo bo'lgan, server va CI da
+    # esa 3.10 ishlatiladi.
+    return datetime.now(timezone.utc)
 
 
 class Base(DeclarativeBase):
