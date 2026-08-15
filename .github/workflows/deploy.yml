@@ -38,6 +38,20 @@ jobs:
         run: pnpm run build
         working-directory: webapp
 
+      # scp oddiy foydalanuvchi nomidan ishlaydi va /var/www/ ichida katalog
+      # yarata olmaydi. Shuning uchun uni oldindan tayyorlab qo'yamiz.
+      - name: Statik katalogni tayyorlash
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
+            $SUDO mkdir -p /var/www/davomat
+            $SUDO chown "$(id -un):$(id -gn)" /var/www/davomat
+
       - name: Statik fayllarni yuklash
         uses: appleboy/scp-action@v0.1.7
         with:
