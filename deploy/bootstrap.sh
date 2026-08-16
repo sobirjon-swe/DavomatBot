@@ -218,15 +218,26 @@ id -u "$SERVICE_USER" >/dev/null 2>&1 \
 
 $SUDO chown -R "$SERVICE_USER:$SERVICE_USER" "$APP_DIR"
 $SUDO cp "$APP_DIR/deploy/davomat.service" /etc/systemd/system/
+$SUDO cp "$APP_DIR/deploy/davomat-api.service" /etc/systemd/system/
 $SUDO systemctl daemon-reload
 $SUDO systemctl enable --quiet --now davomat
 $SUDO systemctl restart davomat
+$SUDO systemctl enable --quiet --now davomat-api
+$SUDO systemctl restart davomat-api
 
 sleep 5
 if $SUDO systemctl is-active --quiet davomat; then
   log "Tayyor: bot ishlayapti."
 else
-  echo "XATO: xizmat ishga tushmadi. Sabab:"
+  echo "XATO: davomat xizmati ishga tushmadi. Sabab:"
   $SUDO journalctl -u davomat -n 30 --no-pager
+  exit 1
+fi
+
+if $SUDO systemctl is-active --quiet davomat-api; then
+  log "Tayyor: Mini App API ishlayapti."
+else
+  echo "XATO: davomat-api xizmati ishga tushmadi. Sabab:"
+  $SUDO journalctl -u davomat-api -n 30 --no-pager
   exit 1
 fi

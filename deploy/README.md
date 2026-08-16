@@ -178,25 +178,45 @@ sifatida bajarish eng sodda yo'l.
 
 ## 5. nginx va sertifikat
 
+`nginx-davomat.conf` 443-blokda sertifikat yo'liga to'g'ridan-to'g'ri
+ishora qiladi, shuning uchun uni **sertifikat olingandan keyin**
+o'rnatish kerak — aks holda `nginx -t` hali mavjud bo'lmagan faylga
+ishora qilgani uchun yiqiladi. To'g'ri ketma-ketlik ikki bosqich:
+
 ```bash
 sudo mkdir -p /var/www/davomat
 sudo chown -R $USER:$USER /var/www/davomat
 
-sudo cp deploy/nginx-davomat.conf /etc/nginx/sites-available/davomat
-sudo nano /etc/nginx/sites-available/davomat        # domenni yozing
-sudo ln -s /etc/nginx/sites-available/davomat /etc/nginx/sites-enabled/
+# 1-bosqich: faqat 80-portli vaqtinchalik fayl bilan sertifikat olish
+cat <<'EOF' | sudo tee /etc/nginx/sites-available/davomat
+server {
+    listen 80;
+    listen [::]:80;
+    server_name davomat.example.uz;
+    location / { return 200 'ok'; }
+}
+EOF
+sudo ln -sf /etc/nginx/sites-available/davomat /etc/nginx/sites-enabled/davomat
 sudo nginx -t && sudo systemctl reload nginx
+sudo certbot certonly --nginx -d davomat.example.uz
 
-sudo certbot --nginx -d davomat.example.uz
+# 2-bosqich: sertifikat tayyor — endi to'liq konfiguratsiyani o'rnatish
+sudo cp deploy/nginx-davomat.conf /etc/nginx/sites-available/davomat
+sudo sed -i 's/davomat.example.uz/SIZNING-DOMENINGIZ/g' \
+    /etc/nginx/sites-available/davomat
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Sozlamada ikki nozik joy bor, ikkalasi ham faylda izohlangan:
+Sozlamada uchta nozik joy bor, hammasi faylda izohlangan:
 
 - **`X-Frame-Options` qo'yilmagan.** Telegram Web da Mini App iframe ichida
   ochiladi va bu sarlavha uni butunlay bloklaydi. Mobil ilovada WebView
   bo'lgani uchun muammo sezilmaydi — xato faqat brauzerdagi Telegramda chiqadi.
 - **`client_max_body_size 12m`.** nginx dagi standart chegara 1 MB va u
   10 MB lik rasmni 413 bilan qaytarib yuborardi.
+- **`listen 443 ssl http2;`** (eski sintaksis). nginx 1.25.1 dan oldingi
+  versiyalarda (masalan Ubuntu 24.04 dagi 1.24.0) alohida `http2 on;`
+  direktivasi mavjud emas — `nginx -t` "unknown directive" bilan yiqiladi.
 
 ## 6. WEBAPP_URL va botni qayta ishga tushirish
 
