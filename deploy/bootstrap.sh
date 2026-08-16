@@ -230,9 +230,11 @@ id -u "$SERVICE_USER" >/dev/null 2>&1 \
 # takrorlab turadi, va u egalikni yo'qotsa "Permission denied" bilan
 # yiqiladi. $SERVICE_USER (davomat) kodni FAQAT o'qiydi (davomat.service
 # ProtectHome=read-only, PYTHONDONTWRITEBYTECODE=1) — shuning uchun unga
-# egalik emas, faqat o'qish huquqi kifoya. .env esa maxfiy, shu sababli
-# alohida — faqat guruh orqali davomat'ga o'qishga ruxsat beriladi.
-$SUDO chmod -R o+rX "$APP_DIR"
+# egalik emas, faqat o'qish huquqi kifoya. .env esa maxfiy — uni bu
+# rekursiv chmod'dan butunlay chetlab o'tamiz (find -prune), aks holda
+# .env bir lahzaga ham bo'lsa hammaga o'qishli bo'lib qolardi (avval
+# o'ziga, keyin chmod 640 bilan tor qilinguncha).
+$SUDO find "$APP_DIR" -path "$BOT_DIR/.env" -prune -o -exec chmod o+rX {} +
 $SUDO chgrp "$SERVICE_USER" "$BOT_DIR/.env"
 $SUDO chmod 640 "$BOT_DIR/.env"
 
