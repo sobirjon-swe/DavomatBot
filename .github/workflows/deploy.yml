@@ -71,6 +71,16 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             set -euo pipefail
+
+            # bootstrap.sh /home/DavomatBot ni "davomat" xizmat
+            # foydalanuvchisiga o'tkazadi, deploy esa boshqa (VPS_USER)
+            # foydalanuvchi nomidan ishlaydi — Git buni xavfsizlik sababli
+            # rad etadi (CVE-2022-24765), shuning uchun aniq ishonch bildirish
+            # kerak.
+            git config --global --get-all safe.directory 2>/dev/null \
+                | grep -qxF /home/DavomatBot \
+                || git config --global --add safe.directory /home/DavomatBot
+
             cd /home/DavomatBot/bot
 
             git pull origin main

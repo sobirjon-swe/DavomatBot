@@ -107,6 +107,15 @@ fi
 
 # ─── 3. Repo ────────────────────────────────────────────────────────────────
 
+# Tizim darajasida ishonchli deb belgilanadi — pastda $APP_DIR egaligi
+# xizmat foydalanuvchisiga o'tkaziladi, shundan keyin bu katalogda Git
+# root, VPS_USER yoki xizmat foydalanuvchisi nomidan ishlatilishi mumkin
+# (masalan Deploy workflow i orqali) — aks holda "dubious ownership" bilan
+# yiqiladi (CVE-2022-24765).
+if ! git config --system --get-all safe.directory 2>/dev/null | grep -qxF "$APP_DIR"; then
+  $SUDO git config --system --add safe.directory "$APP_DIR"
+fi
+
 log "Repo: $APP_DIR"
 if [ -d "$APP_DIR/.git" ]; then
   git -C "$APP_DIR" fetch --quiet origin "$BRANCH"
