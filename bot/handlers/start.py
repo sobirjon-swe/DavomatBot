@@ -20,6 +20,7 @@ from database.crud import (
 )
 from database.models import User, UserRole
 from database.session import AsyncSessionLocal
+from keyboards import webapp
 from keyboards.admin_kb import admin_login_choice_kb, admin_main_menu_kb
 from keyboards.employee_kb import (
     districts_kb,
@@ -48,6 +49,12 @@ async def show_home(message: Message, user: User) -> None:
         )
     else:
         await message.answer(t(lang, "main_menu"), reply_markup=main_menu_kb(lang))
+
+    # Xabarga bog'langan (inline) tugma — shu tufayli Telegram suhbatlar
+    # ro'yxatida ham "Open" tezkor tugmasi ko'rinadi. Doimiy klaviaturadagi
+    # tugma buni bermaydi, chunki u xabarga emas, suhbatga bog'langan.
+    if webapp.is_enabled():
+        await message.answer(t(lang, "open_app_hint"), reply_markup=webapp.inline_kb(lang))
 
 
 @router.message(CommandStart())

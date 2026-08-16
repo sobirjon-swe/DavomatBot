@@ -52,6 +52,7 @@ btn_settings = "⚙️ Sozlamalar"
 # ─── Mini App ───────────────────────────────────────────────────────────────
 btn_open_app = "📱 Ilovani ochish"
 menu_button_app = "Davomat"
+open_app_hint = "📱 Hisobotlar va ro'yxatlar bilan ishlash uchun ilovadan foydalaning:"
 
 # ─── Sozlamalar ─────────────────────────────────────────────────────────────
 settings_menu = "⚙️ Sozlamalar"
