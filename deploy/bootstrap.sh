@@ -225,7 +225,17 @@ log "systemd xizmati"
 id -u "$SERVICE_USER" >/dev/null 2>&1 \
   || $SUDO useradd --system --no-create-home --shell /usr/sbin/nologin "$SERVICE_USER"
 
-$SUDO chown -R "$SERVICE_USER:$SERVICE_USER" "$APP_DIR"
+# $APP_DIR ni $SERVICE_USER ga BUTUNLAY o'tkazib yubormaymiz — Deploy
+# workflow i git pull/pip install ni VPS_USER nomidan (SSH orqali) doim
+# takrorlab turadi, va u egalikni yo'qotsa "Permission denied" bilan
+# yiqiladi. $SERVICE_USER (davomat) kodni FAQAT o'qiydi (davomat.service
+# ProtectHome=read-only, PYTHONDONTWRITEBYTECODE=1) — shuning uchun unga
+# egalik emas, faqat o'qish huquqi kifoya. .env esa maxfiy, shu sababli
+# alohida — faqat guruh orqali davomat'ga o'qishga ruxsat beriladi.
+$SUDO chmod -R o+rX "$APP_DIR"
+$SUDO chgrp "$SERVICE_USER" "$BOT_DIR/.env"
+$SUDO chmod 640 "$BOT_DIR/.env"
+
 $SUDO cp "$APP_DIR/deploy/davomat.service" /etc/systemd/system/
 $SUDO cp "$APP_DIR/deploy/davomat-api.service" /etc/systemd/system/
 $SUDO systemctl daemon-reload
