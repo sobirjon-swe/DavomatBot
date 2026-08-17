@@ -1,4 +1,4 @@
-import { AlertCircle, Camera, Check, Images, Loader2, MapPin, X } from 'lucide-react'
+import { AlertCircle, Check, Images, Loader2, MapPin, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -71,7 +71,6 @@ export function NewReportPage() {
   const [locating, setLocating] = useState(false)
 
   const fileInput = useRef<HTMLInputElement>(null)
-  const cameraInput = useRef<HTMLInputElement>(null)
 
   // Ko'rish uchun yaratilgan blob URL lar oqib ketmasin
   const photosRef = useRef(photos)
@@ -156,7 +155,6 @@ export function NewReportPage() {
 
     // Bir xil faylni qayta tanlash mumkin bo'lsin
     if (fileInput.current) fileInput.current.value = ''
-    if (cameraInput.current) cameraInput.current.value = ''
   }
 
   function removePhoto(key: string) {
@@ -390,43 +388,21 @@ export function NewReportPage() {
           ))}
 
           {photos.length < MAX_PHOTOS && (
-            <>
-              <button
-                type="button"
-                onClick={() => cameraInput.current?.click()}
-                className="flex aspect-square items-center justify-center rounded-md border border-dashed border-border text-muted-foreground"
-                aria-label="Kamerada suratga olish"
-              >
-                <Camera className="size-6" />
-              </button>
-              <button
-                type="button"
-                onClick={() => fileInput.current?.click()}
-                className="flex aspect-square items-center justify-center rounded-md border border-dashed border-border text-muted-foreground"
-                aria-label="Galereyadan tanlash"
-              >
-                <Images className="size-6" />
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={() => fileInput.current?.click()}
+              className="flex aspect-square items-center justify-center rounded-md border border-dashed border-border text-muted-foreground"
+              aria-label="Galereyadan tanlash"
+            >
+              <Images className="size-6" />
+            </button>
           )}
         </div>
 
         {/*
-          Ikkita alohida input: Android'ning zamonaviy "Photo Picker"i
-          `capture` bo'lmasa kamerani umuman taklif qilmaydi (faqat
-          galereyani ko'rsatadi), shuning uchun kamera uchun alohida,
-          `capture` bilan input kerak. Galereya inputida esa `capture`
-          ataylab yo'q — u bo'lsa ko'p rasm birdaniga tanlash ishlamay
-          qoladi.
+          `capture` ataylab qo'yilmagan: u kamerani majburlab, galereyadan
+          tanlashni va `multiple` ni ishlamay qo'yadi.
         */}
-        <input
-          ref={cameraInput}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className="hidden"
-          onChange={(event) => void addFiles(event.target.files)}
-        />
         <input
           ref={fileInput}
           type="file"
