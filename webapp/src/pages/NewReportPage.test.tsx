@@ -62,7 +62,9 @@ function photoFile(name: string) {
 }
 
 function fileInput() {
-  return document.querySelector('input[type="file"]') as HTMLInputElement
+  // Galereya inputi — `multiple` bilan farqlanadi (kamera inputidan farqli
+  // o'laroq, u faqat bitta rasm oladi).
+  return document.querySelector('input[type="file"][multiple]') as HTMLInputElement
 }
 
 async function fillEverything(user: ReturnType<typeof userEvent.setup>) {
