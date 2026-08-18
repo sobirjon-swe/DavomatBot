@@ -4,6 +4,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/components/AppShell'
 import { ErrorScreen, LoadingScreen } from '@/components/StatusScreen'
 import { ApiProvider, useMe } from '@/lib/queries'
+import { AttendanceQueuePage } from '@/pages/AttendanceQueuePage'
 import { EmployeeDetailPage } from '@/pages/EmployeeDetailPage'
 import { EmployeesPage } from '@/pages/EmployeesPage'
 import { NewEmployeePage } from '@/pages/NewEmployeePage'
@@ -24,8 +25,17 @@ function Shell() {
     <Routes>
       <Route element={<AppShell me={me.data} />}>
         <Route index element={<ReportsPage />} />
-        <Route path="new" element={<NewReportPage />} />
+        <Route
+          path="new"
+          // Hisobot topshirish — faqat hodim amali. Botning admin menyusida
+          // ham bu tugma yo'q, shuning uchun bu yerda ham admin uchun yopiq.
+          element={!isAdmin ? <NewReportPage /> : <Navigate to="/" replace />}
+        />
         <Route path="reports/:id" element={<ReportDetailPage />} />
+        <Route
+          path="attendance"
+          element={isAdmin ? <AttendanceQueuePage /> : <Navigate to="/" replace />}
+        />
         <Route
           path="employees"
           element={isAdmin ? <EmployeesPage /> : <Navigate to="/" replace />}

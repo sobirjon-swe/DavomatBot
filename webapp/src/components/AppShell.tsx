@@ -1,36 +1,43 @@
 import { backButton } from '@telegram-apps/sdk-react'
-import { ClipboardList, PlusCircle, Users } from 'lucide-react'
+import { ClipboardCheck, ClipboardList, ListChecks, PlusCircle, Users } from 'lucide-react'
 import { useEffect } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
 import type { User } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
-const TABS = [
-  { to: '/', label: 'Hisobotlar', icon: ClipboardList, adminOnly: false },
-  { to: '/new', label: 'Yangi', icon: PlusCircle, adminOnly: false },
-  { to: '/employees', label: 'Hodimlar', icon: Users, adminOnly: true },
+// Botda hodim va admin menyulari butunlay alohida (hodim hisobot topshiradi,
+// admin uni ko'rib chiqadi — admin hech qachon hisobot topshirmaydi). Shu
+// tufayli bitta ro'yxatni "adminOnly" bayrog'i bilan filtrlash o'rniga har
+// bir rol uchun alohida, to'liq tab ro'yxati beriladi — aks holda "hamma
+// uchun ochiq" tugma (masalan "Yangi") admin panelga aralashib qolishi
+// mumkin edi.
+const EMPLOYEE_TABS = [
+  { to: '/', label: 'Hisobotlar', icon: ClipboardList },
+  { to: '/new', label: 'Yangi', icon: PlusCircle },
 ] as const
 
-function isRootRoute(pathname: string): boolean {
-  return TABS.some((tab) => tab.to === pathname)
-}
+const ADMIN_TABS = [
+  { to: '/', label: 'Hisobotlar', icon: ListChecks },
+  { to: '/attendance', label: 'Davomat', icon: ClipboardCheck },
+  { to: '/employees', label: 'Hodimlar', icon: Users },
+] as const
 
 export function AppShell({ me }: { me: User }) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const isAdmin = me.role === 'admin' || me.role === 'superadmin'
-  const tabs = TABS.filter((tab) => !tab.adminOnly || isAdmin)
+  const tabs = isAdmin ? ADMIN_TABS : EMPLOYEE_TABS
 
   // Telegram ning tizim "orqaga" tugmasi faqat ichki sahifalarda ko'rinadi.
   useEffect(() => {
     if (!backButton.isMounted()) return
-    if (isRootRoute(pathname)) {
+    if (tabs.some((tab) => tab.to === pathname)) {
       backButton.hide()
     } else {
       backButton.show()
     }
-  }, [pathname])
+  }, [pathname, tabs])
 
   useEffect(() => {
     if (!backButton.onClick.isAvailable()) return
