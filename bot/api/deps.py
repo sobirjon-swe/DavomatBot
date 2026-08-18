@@ -75,9 +75,6 @@ async def current_user(
         # Sabab logga yoziladi, lekin javobda oshkor qilinmaydi — aks holda
         # imzoni tanlab olishga urinayotgan odamga yordam bergan bo'lardik.
         logger.warning("initData rad etildi: %s", exc)
-        # VAQTINCHALIK: production'dagi "imzo mos kelmadi" muammosini
-        # diagnostika qilish uchun. Sabab aniqlangach OLIB TASHLANSIN.
-        logger.warning("VAQTINCHALIK DEBUG — xom initData: %r", raw)
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
             detail={"code": "unauthorized", "message": "Avtorizatsiya ma'lumoti yaroqsiz"},
