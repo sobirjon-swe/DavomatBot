@@ -558,6 +558,58 @@ async def test_missing_yol_report_id_bilan_toqnashmaydi(api_client, admin):
     assert response.status_code == 200
 
 
+# ─── Excel eksport ──────────────────────────────────────────────────────────
+
+async def test_admin_eksport_qiladi(api_client, session, employee, admin, districts, fake_bot):
+    await _report(session, employee, districts[0].id)
+    today = crud.local_today().isoformat()
+
+    response = await api_client.post(
+        "/api/reports/export",
+        json={"date_from": today, "date_to": today},
+        headers=auth_header(admin.telegram_id),
+    )
+
+    assert response.status_code == 200
+    assert len(fake_bot.documents) == 1
+    assert fake_bot.documents[0]["chat_id"] == admin.telegram_id
+
+
+async def test_hodim_eksport_qila_olmaydi(api_client, admin, employee):
+    today = crud.local_today().isoformat()
+
+    response = await api_client.post(
+        "/api/reports/export",
+        json={"date_from": today, "date_to": today},
+        headers=auth_header(employee.telegram_id),
+    )
+
+    assert response.status_code == 403
+
+
+async def test_bosh_oraliq_404(api_client, admin):
+    today = crud.local_today().isoformat()
+
+    response = await api_client.post(
+        "/api/reports/export",
+        json={"date_from": today, "date_to": today},
+        headers=auth_header(admin.telegram_id),
+    )
+
+    assert response.status_code == 404
+
+
+async def test_teskari_oraliq_400(api_client, admin):
+    response = await api_client.post(
+        "/api/reports/export",
+        json={"date_from": "2026-06-10", "date_to": "2026-06-01"},
+        headers=auth_header(admin.telegram_id),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "bad_range"
+
+
 # ─── Rasm yuklash ───────────────────────────────────────────────────────────
 
 async def test_rasm_yuklanadi_va_file_id_qaytadi(

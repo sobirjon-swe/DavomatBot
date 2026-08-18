@@ -7,6 +7,7 @@ import {
   type Api,
   type EmployeeInput,
   type EmployeeUpdateInput,
+  type ExportInput,
   type PasswordChangeInput,
   type ReportInput,
   type ReportStatus,
@@ -47,7 +48,12 @@ export function useMe() {
   return useQuery({ queryKey: ['me'], queryFn: () => api.getMe(), retry: shouldRetry })
 }
 
-export function useReports(params: { day?: string; status?: ReportStatus; page: number }) {
+export function useReports(params: {
+  day?: string
+  status?: ReportStatus
+  user_id?: number
+  page: number
+}) {
   const api = useApi()
   return useQuery({
     queryKey: ['reports', params],
@@ -163,6 +169,33 @@ export function useCreateReport() {
     mutationFn: (payload: ReportInput) => api.createReport(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['reports'] })
+    },
+  })
+}
+
+export function useMissingReports(day?: string) {
+  const api = useApi()
+  return useQuery({
+    queryKey: ['reports-missing', day],
+    queryFn: () => api.getMissingReports(day),
+    retry: shouldRetry,
+  })
+}
+
+export function useExportReports() {
+  const api = useApi()
+  return useMutation({
+    mutationFn: (payload: ExportInput) => api.exportReports(payload),
+  })
+}
+
+export function useChangeLanguage() {
+  const api = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (language: 'uz' | 'ru') => api.changeLanguage(language),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['me'] })
     },
   })
 }

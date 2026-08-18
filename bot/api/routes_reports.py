@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import date
 from typing import Literal
@@ -8,6 +9,7 @@ from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 import config
 from api.deps import AdminUser, BotDep, CurrentUser, SessionDep
 from api.schemas import (
+    ExportRequest,
     OkOut,
     Page,
     PhotoOut,
@@ -36,6 +38,7 @@ from database.models import Report, ReportType, User, UserRole
 from keyboards.pagination import PER_PAGE, page_count
 from locales import t
 from utils.channel import send_report_to_channel
+from utils.export import build_workbook, file_name
 from utils.notifications import notify_partners, notify_user
 
 logger = logging.getLogger(__name__)
@@ -127,6 +130,78 @@ async def missing_reports(
         session, day or local_today(), only_role=UserRole.employee
     )
     return [user_brief(e) for e in employees]
+
+
+@router.post("/reports/export", response_model=OkOut)
+async def export_reports(
+    payload: ExportRequest, admin: AdminUser, session: SessionDep, bot: BotDep
+) -> OkOut:
+    """Belgilangan oraliqdagi hisobotlarni Excel qilib botga yuboradi.
+
+    Mini App WebView'da faylni to'g'ridan-to'g'ri yuklab olish ishonchsiz,
+    shuning uchun tayyor fayl botning o'zi orqali adminning shaxsiy
+    chatiga yuboriladi — xuddi botdagi "Eksport" menyusi kabi.
+    """
+    if payload.date_from > payload.date_to:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail={"code": "bad_range", "message": "Sanalar oralig'i noto'g'ri"},
+        )
+    if (payload.date_to - payload.date_from).days + 1 > config.MAX_EXPORT_DAYS:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "range_too_long",
+                "message": f"Oraliq {config.MAX_EXPORT_DAYS} kundan oshmasligi kerak",
+            },
+        )
+    if admin.telegram_id is None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail={"code": "not_linked", "message": "Hisobingiz botga bog'lanmagan"},
+        )
+
+    reports = await list_reports(session, date_from=payload.date_from, date_to=payload.date_to)
+    if not reports:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={"code": "empty", "message": "Bu oraliqda hisobot topilmadi"},
+        )
+
+    # openpyxl sinxron ishlaydi; katta oraliqda event loop qotib
+    # qolmasligi uchun alohida oqimga chiqariladi (bot chatidagi eksport
+    # bilan bir xil yondashuv — utils/export.py).
+    workbook = await asyncio.to_thread(build_workbook, admin.language, reports)
+
+    try:
+        await bot.send_document(
+            chat_id=admin.telegram_id,
+            document=BufferedInputFile(
+                workbook, filename=file_name(payload.date_from, payload.date_to)
+            ),
+            caption=t(
+                admin.language,
+                "export_caption",
+                range=(
+                    payload.date_from.strftime("%d.%m.%Y")
+                    if payload.date_from == payload.date_to
+                    else f"{payload.date_from:%d.%m.%Y} - {payload.date_to:%d.%m.%Y}"
+                ),
+                count=len(reports),
+            ),
+        )
+    except Exception:
+        logger.exception("Eksport faylini botga yuborib bo'lmadi (admin id=%s)", admin.id)
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            detail={"code": "send_failed", "message": "Faylni botga yuborib bo'lmadi"},
+        ) from None
+
+    logger.info(
+        "Eksport Mini App orqali botga yuborildi: %s - %s (admin id=%s)",
+        payload.date_from, payload.date_to, admin.id,
+    )
+    return OkOut()
 
 
 @router.get("/reports/{report_id}", response_model=ReportOut)

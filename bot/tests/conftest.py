@@ -154,6 +154,7 @@ class FakeBot:
         self.messages: list[dict] = []
         self.photos: list[dict] = []
         self.media_groups: list[dict] = []
+        self.documents: list[dict] = []
         self.fail_on_send = False
 
     async def send_message(self, chat_id, text, **kwargs):
@@ -176,6 +177,12 @@ class FakeBot:
             raise RuntimeError("Telegram xatosi")
         self.media_groups.append({"chat_id": chat_id, "media": media})
         return []
+
+    async def send_document(self, chat_id, document, **kwargs):
+        if self.fail_on_send:
+            raise RuntimeError("Telegram xatosi")
+        self.documents.append({"chat_id": chat_id, "document": document})
+        return SimpleNamespace(message_id=len(self.documents))
 
 
 @pytest.fixture

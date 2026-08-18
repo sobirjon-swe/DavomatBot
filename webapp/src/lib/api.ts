@@ -79,6 +79,12 @@ export interface PasswordChangeInput {
   new_password: string
 }
 
+/** POST /api/reports/export tanasi. */
+export interface ExportInput {
+  date_from: string
+  date_to: string
+}
+
 /** POST /api/reports tanasi. Server tomonda ham qayta tekshiriladi. */
 export interface ReportInput {
   report_type: Report['report_type']
@@ -170,6 +176,12 @@ export function createApi(initData: string) {
   return {
     getMe: () => request<User>('/me'),
 
+    changeLanguage: (language: 'uz' | 'ru') =>
+      request<User>('/me/language', {
+        method: 'PATCH',
+        body: JSON.stringify({ language }),
+      }),
+
     getDistricts: () => request<District[]>('/districts'),
 
     /** Sherik qilib qo'shish mumkin bo'lgan hodimlar (o'zidan tashqari). */
@@ -205,6 +217,17 @@ export function createApi(initData: string) {
 
     rejectReport: (id: number) =>
       request<Report>(`/reports/${id}/reject`, { method: 'POST' }),
+
+    /** Berilgan kunda (kiritilmasa — bugun) hisobot bermagan hodimlar. */
+    getMissingReports: (day?: string) =>
+      request<UserBrief[]>(`/reports/missing${query({ day })}`),
+
+    /** Belgilangan oraliqni Excel qilib botning o'zi orqali yuboradi. */
+    exportReports: (payload: ExportInput) =>
+      request<{ ok: boolean }>('/reports/export', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
 
     listEmployees: (params: {
       page?: number

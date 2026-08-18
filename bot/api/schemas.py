@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Generic, Literal, TypeVar
 
 from pydantic import BaseModel, Field, field_validator
@@ -122,6 +122,11 @@ class DistrictsUpdate(BaseModel):
 class PasswordChange(BaseModel):
     current_password: str = Field(min_length=1)
     new_password: str = Field(min_length=config.MIN_PASSWORD_LENGTH)
+
+
+class ExportRequest(BaseModel):
+    date_from: date
+    date_to: date
 
 
 # ─── ORM -> sxema ───────────────────────────────────────────────────────────

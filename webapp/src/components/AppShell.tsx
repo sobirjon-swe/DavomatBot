@@ -53,20 +53,18 @@ export function AppShell({ me }: { me: User }) {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      {isAdmin && (
-        <header className="flex justify-end px-4 pt-3">
-          <Link
-            to="/settings"
-            className={cn(
-              'flex size-9 items-center justify-center rounded-full',
-              pathname === '/settings' ? 'text-primary' : 'text-muted-foreground',
-            )}
-            aria-label="Sozlamalar"
-          >
-            <Settings className="size-5" />
-          </Link>
-        </header>
-      )}
+      <header className="flex justify-end px-4 pt-3">
+        <Link
+          to="/settings"
+          className={cn(
+            'flex size-9 items-center justify-center rounded-full',
+            pathname === '/settings' ? 'text-primary' : 'text-muted-foreground',
+          )}
+          aria-label="Sozlamalar"
+        >
+          <Settings className="size-5" />
+        </Link>
+      </header>
 
       <main className="flex-1 pb-20">
         <Outlet />

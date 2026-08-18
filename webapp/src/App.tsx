@@ -7,6 +7,8 @@ import { ApiProvider, useMe } from '@/lib/queries'
 import { AttendanceQueuePage } from '@/pages/AttendanceQueuePage'
 import { EmployeeDetailPage } from '@/pages/EmployeeDetailPage'
 import { EmployeesPage } from '@/pages/EmployeesPage'
+import { ExportPage } from '@/pages/ExportPage'
+import { MissingReportsPage } from '@/pages/MissingReportsPage'
 import { NewEmployeePage } from '@/pages/NewEmployeePage'
 import { NewReportPage } from '@/pages/NewReportPage'
 import { ReportDetailPage } from '@/pages/ReportDetailPage'
@@ -49,11 +51,16 @@ function Shell() {
           path="employees/:id"
           element={isAdmin ? <EmployeeDetailPage /> : <Navigate to="/" replace />}
         />
+        {/* Til almashtirish hammaga ochiq; kirish parolini faqat adminlar
+            o'zgartira oladi — bu farq SettingsPage ichida hal qilinadi. */}
+        <Route path="settings" element={<SettingsPage />} />
         <Route
-          path="settings"
-          // Kirish parolini faqat adminlar o'zgartira oladi — botning
-          // "🔑 Parolni o'zgartirish" menyusi ham shunday.
-          element={isAdmin ? <SettingsPage /> : <Navigate to="/" replace />}
+          path="missing"
+          element={isAdmin ? <MissingReportsPage /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="export"
+          element={isAdmin ? <ExportPage /> : <Navigate to="/" replace />}
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

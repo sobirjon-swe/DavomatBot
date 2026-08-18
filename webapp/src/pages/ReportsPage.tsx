@@ -1,13 +1,14 @@
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Download, Search, UserX, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { EmptyScreen, ErrorScreen, LoadingScreen } from '@/components/StatusScreen'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input, Select } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Report, ReportStatus } from '@/lib/api'
-import { useMe, useReports } from '@/lib/queries'
+import { useColleagues, useMe, useReports } from '@/lib/queries'
 import { formatTime, toApiDate } from '@/lib/utils'
 
 const FILTERS: { key: ReportStatus | 'all'; label: string }[] = [
@@ -55,20 +56,89 @@ function ReportRow({ report }: { report: Report }) {
   )
 }
 
+interface Search {
+  date: string
+  userId: number
+  userName: string
+}
+
+function SearchPanel({
+  onSearch,
+  onClose,
+}: {
+  onSearch: (search: Search) => void
+  onClose: () => void
+}) {
+  const colleagues = useColleagues()
+  const [date, setDate] = useState(() => toApiDate(new Date()))
+  const [userId, setUserId] = useState<number | ''>('')
+
+  const employees = colleagues.data ?? []
+  const canSearch = date !== '' && userId !== ''
+
+  return (
+    <div className="mt-2 space-y-2 rounded-md border border-border p-3">
+      <div className="flex gap-2">
+        <Input
+          type="date"
+          value={date}
+          max={toApiDate(new Date())}
+          onChange={(event) => setDate(event.target.value)}
+        />
+        <Select
+          value={userId}
+          onChange={(event) => setUserId(event.target.value ? Number(event.target.value) : '')}
+        >
+          <option value="">Hodim</option>
+          {employees.map((employee) => (
+            <option key={employee.id} value={employee.id}>
+              {employee.full_name}
+            </option>
+          ))}
+        </Select>
+      </div>
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          className="flex-1"
+          disabled={!canSearch}
+          onClick={() => {
+            if (!canSearch) return
+            const employee = employees.find((e) => e.id === userId)
+            onSearch({ date, userId, userName: employee?.full_name ?? '' })
+          }}
+        >
+          <Search />
+          Qidirish
+        </Button>
+        <Button size="sm" variant="secondary" onClick={onClose}>
+          Bekor qilish
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export function ReportsPage() {
   const [filter, setFilter] = useState<ReportStatus | 'all'>('pending')
   const [page, setPage] = useState(1)
   const [today] = useState(() => toApiDate(new Date()))
+  const [search, setSearch] = useState<Search | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
 
   const me = useMe()
   const isAdmin = me.data?.role === 'admin' || me.data?.role === 'superadmin'
 
-  const reports = useReports({
-    page,
-    status: filter === 'all' ? undefined : filter,
-    // Kutilayotganlar hamma kun bo'yicha, qolgan filtrlar bugungi kun bo'yicha
-    day: filter === 'pending' ? undefined : today,
-  })
+  const reports = useReports(
+    search
+      ? { page, day: search.date, user_id: search.userId }
+      : {
+          page,
+          status: filter === 'all' ? undefined : filter,
+          // Kutilayotganlar hamma kun bo'yicha, qolgan filtrlar bugungi kun bo'yicha
+          day: filter === 'pending' ? undefined : today,
+        },
+  )
 
   if (me.isLoading) return <LoadingScreen />
   if (me.error) return <ErrorScreen error={me.error} />
@@ -79,21 +149,75 @@ export function ReportsPage() {
         <h1 className="text-lg font-semibold">
           {isAdmin ? 'Hisobotlar' : 'Mening hisobotlarim'}
         </h1>
-        <div className="mt-2 flex gap-2 overflow-x-auto">
-          {FILTERS.map(({ key, label }) => (
-            <Button
-              key={key}
-              size="sm"
-              variant={filter === key ? 'default' : 'secondary'}
+
+        {!search && (
+          <div className="mt-2 flex gap-2 overflow-x-auto">
+            {FILTERS.map(({ key, label }) => (
+              <Button
+                key={key}
+                size="sm"
+                variant={filter === key ? 'default' : 'secondary'}
+                onClick={() => {
+                  setFilter(key)
+                  setPage(1)
+                }}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+        )}
+
+        {isAdmin && !search && (
+          <div className="mt-2 flex gap-2 overflow-x-auto">
+            <Button size="sm" variant="secondary" onClick={() => setSearchOpen((v) => !v)}>
+              <Search />
+              Qidiruv
+            </Button>
+            <Button size="sm" variant="secondary" asChild>
+              <Link to="/missing">
+                <UserX />
+                Bermaganlar
+              </Link>
+            </Button>
+            <Button size="sm" variant="secondary" asChild>
+              <Link to="/export">
+                <Download />
+                Eksport
+              </Link>
+            </Button>
+          </div>
+        )}
+
+        {!isAdmin ? null : search ? (
+          <div className="mt-2 flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm">
+            <span>
+              {search.userName} &middot; {search.date}
+            </span>
+            <button
+              type="button"
               onClick={() => {
-                setFilter(key)
+                setSearch(null)
                 setPage(1)
               }}
+              className="text-muted-foreground"
+              aria-label="Qidiruvni tozalash"
             >
-              {label}
-            </Button>
-          ))}
-        </div>
+              <X className="size-4" />
+            </button>
+          </div>
+        ) : (
+          searchOpen && (
+            <SearchPanel
+              onSearch={(value) => {
+                setSearch(value)
+                setSearchOpen(false)
+                setPage(1)
+              }}
+              onClose={() => setSearchOpen(false)}
+            />
+          )
+        )}
       </header>
 
       {reports.isLoading ? (
