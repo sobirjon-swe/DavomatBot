@@ -127,6 +127,24 @@ async def update_user(
     return user
 
 
+async def ensure_superadmin(session: AsyncSession, telegram_id: int) -> None:
+    """SUPERADMIN_ID hisobi doim superadmin va faol bo'lishini kafolatlaydi.
+
+    Rol odatda faqat ro'yxatdan o'tish paytida beriladi (`start.py`). Agar bu
+    hisob avvalroq, `.env` dagi SUPERADMIN_ID hali to'g'irlanmagan yoki baza
+    qayta tiklangan paytda oddiy hodim sifatida yaratilgan bo'lsa, roli
+    boshqa hech qachon o'zi tuzatilmay qolardi. Shu funksiya buni har bot
+    ishga tushganda tekshirib, kerak bo'lsa tuzatadi.
+    """
+    user = await get_user_by_telegram_id(session, telegram_id)
+    if user is None:
+        return
+    if user.role != UserRole.superadmin or not user.is_active:
+        user.role = UserRole.superadmin
+        user.is_active = True
+        await session.commit()
+
+
 async def get_unlinked_users(session: AsyncSession) -> list[User]:
     """Admin qo'shgan, lekin hali botga kirmagan hodimlar."""
     result = await session.execute(

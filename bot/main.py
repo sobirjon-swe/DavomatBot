@@ -9,7 +9,12 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand, ErrorEvent
 
 import config
-from database.crud import create_initial_password, get_active_password, seed_districts
+from database.crud import (
+    create_initial_password,
+    ensure_superadmin,
+    get_active_password,
+    seed_districts,
+)
 from database.session import AsyncSessionLocal, close_engine
 from handlers.admin.attendance import router as attendance_router
 from handlers.admin.employees import router as employees_router
@@ -56,6 +61,9 @@ async def on_startup(bot: Bot) -> None:
         added = await seed_districts(session)
         if added:
             logger.info("Bazaga %s ta yangi tuman qo'shildi.", added)
+
+        if config.SUPERADMIN_ID:
+            await ensure_superadmin(session, config.SUPERADMIN_ID)
 
         if not await get_active_password(session):
             raw_password = config.INITIAL_ACCESS_PASSWORD or _generate_password()
