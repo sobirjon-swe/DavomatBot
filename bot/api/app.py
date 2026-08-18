@@ -8,6 +8,7 @@ import config
 from api.deps import close_bot
 from api.routes_employees import router as employees_router
 from api.routes_me import router as me_router
+from api.routes_password import router as password_router
 from api.routes_reports import router as reports_router
 from database.session import close_engine
 
@@ -47,7 +48,7 @@ def create_app() -> FastAPI:
             allow_headers=["*"],
         )
 
-    for router in (me_router, employees_router, reports_router):
+    for router in (me_router, employees_router, reports_router, password_router):
         app.include_router(router, prefix="/api")
 
     return app

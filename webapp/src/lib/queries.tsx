@@ -7,6 +7,7 @@ import {
   type Api,
   type EmployeeInput,
   type EmployeeUpdateInput,
+  type PasswordChangeInput,
   type ReportInput,
   type ReportStatus,
 } from './api'
@@ -125,6 +126,13 @@ export function useEmployeeActions(id: number) {
   })
 
   return { update, deactivate, activate, changeRole }
+}
+
+export function useChangeAccessPassword() {
+  const api = useApi()
+  return useMutation({
+    mutationFn: (payload: PasswordChangeInput) => api.changeAccessPassword(payload),
+  })
 }
 
 export function useColleagues() {

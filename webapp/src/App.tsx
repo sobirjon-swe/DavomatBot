@@ -11,6 +11,7 @@ import { NewEmployeePage } from '@/pages/NewEmployeePage'
 import { NewReportPage } from '@/pages/NewReportPage'
 import { ReportDetailPage } from '@/pages/ReportDetailPage'
 import { ReportsPage } from '@/pages/ReportsPage'
+import { SettingsPage } from '@/pages/SettingsPage'
 
 function Shell() {
   const me = useMe()
@@ -47,6 +48,12 @@ function Shell() {
         <Route
           path="employees/:id"
           element={isAdmin ? <EmployeeDetailPage /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="settings"
+          // Kirish parolini faqat adminlar o'zgartira oladi — botning
+          // "🔑 Parolni o'zgartirish" menyusi ham shunday.
+          element={isAdmin ? <SettingsPage /> : <Navigate to="/" replace />}
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

@@ -1,7 +1,14 @@
 import { backButton } from '@telegram-apps/sdk-react'
-import { ClipboardCheck, ClipboardList, ListChecks, PlusCircle, Users } from 'lucide-react'
+import {
+  ClipboardCheck,
+  ClipboardList,
+  ListChecks,
+  PlusCircle,
+  Settings,
+  Users,
+} from 'lucide-react'
 import { useEffect } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
 import type { User } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -46,6 +53,21 @@ export function AppShell({ me }: { me: User }) {
 
   return (
     <div className="flex min-h-dvh flex-col">
+      {isAdmin && (
+        <header className="flex justify-end px-4 pt-3">
+          <Link
+            to="/settings"
+            className={cn(
+              'flex size-9 items-center justify-center rounded-full',
+              pathname === '/settings' ? 'text-primary' : 'text-muted-foreground',
+            )}
+            aria-label="Sozlamalar"
+          >
+            <Settings className="size-5" />
+          </Link>
+        </header>
+      )}
+
       <main className="flex-1 pb-20">
         <Outlet />
       </main>

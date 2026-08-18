@@ -119,6 +119,11 @@ class DistrictsUpdate(BaseModel):
     district_ids: list[int] = Field(min_length=1)
 
 
+class PasswordChange(BaseModel):
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=config.MIN_PASSWORD_LENGTH)
+
+
 # ─── ORM -> sxema ───────────────────────────────────────────────────────────
 
 def district_out(district) -> DistrictOut:

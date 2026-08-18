@@ -73,6 +73,12 @@ export interface EmployeeUpdateInput {
   district_ids?: number[]
 }
 
+/** PUT /api/access-password tanasi. */
+export interface PasswordChangeInput {
+  current_password: string
+  new_password: string
+}
+
 /** POST /api/reports tanasi. Server tomonda ham qayta tekshiriladi. */
 export interface ReportInput {
   report_type: Report['report_type']
@@ -231,6 +237,13 @@ export function createApi(initData: string) {
       request<User>(`/employees/${id}/role`, {
         method: 'PATCH',
         body: JSON.stringify({ role }),
+      }),
+
+    /** Botga kirish uchun umumiy parolni almashtiradi (shaxsiy parol emas). */
+    changeAccessPassword: (payload: PasswordChangeInput) =>
+      request<{ ok: boolean }>('/access-password', {
+        method: 'PUT',
+        body: JSON.stringify(payload),
       }),
   }
 }

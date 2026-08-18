@@ -258,6 +258,59 @@ async def test_superadmin_rolini_ozgartirib_bolmaydi(api_client, session, supera
     assert response.status_code == 400
 
 
+# ─── Kirish paroli ──────────────────────────────────────────────────────────
+
+async def test_admin_parolni_ozgartiradi(api_client, session, admin):
+    await crud.create_initial_password(session, "eski-parol")
+
+    response = await api_client.put(
+        "/api/access-password",
+        json={"current_password": "eski-parol", "new_password": "yangi-parol"},
+        headers=auth_header(admin.telegram_id),
+    )
+
+    assert response.status_code == 200
+    assert await crud.verify_access_password(session, "yangi-parol") is True
+    assert await crud.verify_access_password(session, "eski-parol") is False
+
+
+async def test_notogri_joriy_parol_400(api_client, session, admin):
+    await crud.create_initial_password(session, "eski-parol")
+
+    response = await api_client.put(
+        "/api/access-password",
+        json={"current_password": "notogri", "new_password": "yangi-parol"},
+        headers=auth_header(admin.telegram_id),
+    )
+
+    assert response.status_code == 400
+    assert await crud.verify_access_password(session, "eski-parol") is True
+
+
+async def test_hodim_parolni_ozgartira_olmaydi(api_client, session, employee):
+    await crud.create_initial_password(session, "eski-parol")
+
+    response = await api_client.put(
+        "/api/access-password",
+        json={"current_password": "eski-parol", "new_password": "yangi-parol"},
+        headers=auth_header(employee.telegram_id),
+    )
+
+    assert response.status_code == 403
+
+
+async def test_qisqa_yangi_parol_rad_etiladi(api_client, session, admin):
+    await crud.create_initial_password(session, "eski-parol")
+
+    response = await api_client.put(
+        "/api/access-password",
+        json={"current_password": "eski-parol", "new_password": "abc"},
+        headers=auth_header(admin.telegram_id),
+    )
+
+    assert response.status_code == 422
+
+
 # ─── Hisobotlar ─────────────────────────────────────────────────────────────
 
 async def test_hodim_faqat_ozinikini_koradi(
