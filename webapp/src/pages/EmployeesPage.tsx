@@ -1,4 +1,6 @@
+import { UserPlus } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { EmptyScreen, ErrorScreen } from '@/components/StatusScreen'
 import { Badge } from '@/components/ui/badge'
@@ -15,7 +17,10 @@ const ROLE_LABEL: Record<Role, string> = {
 
 function EmployeeRow({ user }: { user: User }) {
   return (
-    <div className="border-b border-border px-4 py-3 last:border-0">
+    <Link
+      to={`/employees/${user.id}`}
+      className="block border-b border-border px-4 py-3 last:border-0 active:bg-muted"
+    >
       <div className="flex items-center gap-2">
         <p className="min-w-0 flex-1 truncate font-medium">{user.full_name}</p>
         {user.role !== 'employee' && (
@@ -30,7 +35,7 @@ function EmployeeRow({ user }: { user: User }) {
           {user.districts.map((d) => d.name_uz).join(', ')}
         </p>
       )}
-    </div>
+    </Link>
   )
 }
 
@@ -42,11 +47,19 @@ export function EmployeesPage() {
 
   return (
     <div>
-      <header className="sticky top-0 z-10 border-b border-border bg-background px-4 py-3">
-        <h1 className="text-lg font-semibold">Hodimlar</h1>
-        {employees.data && (
-          <p className="text-sm text-muted-foreground">Jami {employees.data.total} ta</p>
-        )}
+      <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-border bg-background px-4 py-3">
+        <div>
+          <h1 className="text-lg font-semibold">Hodimlar</h1>
+          {employees.data && (
+            <p className="text-sm text-muted-foreground">Jami {employees.data.total} ta</p>
+          )}
+        </div>
+        <Button size="sm" asChild>
+          <Link to="/employees/new">
+            <UserPlus />
+            Qo'shish
+          </Link>
+        </Button>
       </header>
 
       {employees.isLoading ? (

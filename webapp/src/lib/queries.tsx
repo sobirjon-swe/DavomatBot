@@ -5,6 +5,8 @@ import {
   ApiError,
   createApi,
   type Api,
+  type EmployeeInput,
+  type EmployeeUpdateInput,
   type ReportInput,
   type ReportStatus,
 } from './api'
@@ -69,6 +71,60 @@ export function useEmployees(page: number) {
     queryFn: () => api.listEmployees({ page, per_page: 20 }),
     retry: shouldRetry,
   })
+}
+
+export function useEmployee(id: number) {
+  const api = useApi()
+  return useQuery({
+    queryKey: ['employee', id],
+    queryFn: () => api.getEmployee(id),
+    retry: shouldRetry,
+  })
+}
+
+export function useCreateEmployee() {
+  const api = useApi()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: EmployeeInput) => api.createEmployee(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['employees'] })
+    },
+  })
+}
+
+/** Hodim kartochkasidagi amallar: tahrirlash, faolsizlantirish/tiklash, rol. */
+export function useEmployeeActions(id: number) {
+  const api = useApi()
+  const queryClient = useQueryClient()
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ['employee', id] })
+    void queryClient.invalidateQueries({ queryKey: ['employees'] })
+  }
+
+  const update = useMutation({
+    mutationFn: (payload: EmployeeUpdateInput) => api.updateEmployee(id, payload),
+    onSuccess: invalidate,
+  })
+
+  const deactivate = useMutation({
+    mutationFn: () => api.deactivateEmployee(id),
+    onSuccess: invalidate,
+  })
+
+  const activate = useMutation({
+    mutationFn: () => api.activateEmployee(id),
+    onSuccess: invalidate,
+  })
+
+  const changeRole = useMutation({
+    mutationFn: (role: 'admin' | 'employee') => api.changeEmployeeRole(id, role),
+    onSuccess: invalidate,
+  })
+
+  return { update, deactivate, activate, changeRole }
 }
 
 export function useColleagues() {

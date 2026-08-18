@@ -59,6 +59,20 @@ export interface PhotoUploaded {
   file_id: string
 }
 
+/** POST /api/employees tanasi. */
+export interface EmployeeInput {
+  full_name: string
+  position: string
+  district_ids: number[]
+}
+
+/** PATCH /api/employees/{id} tanasi — hammasi ixtiyoriy. */
+export interface EmployeeUpdateInput {
+  full_name?: string
+  position?: string
+  district_ids?: number[]
+}
+
 /** POST /api/reports tanasi. Server tomonda ham qayta tekshiriladi. */
 export interface ReportInput {
   report_type: Report['report_type']
@@ -200,6 +214,24 @@ export function createApi(initData: string) {
       ),
 
     getEmployee: (id: number) => request<User>(`/employees/${id}`),
+
+    createEmployee: (payload: EmployeeInput) =>
+      request<User>('/employees', { method: 'POST', body: JSON.stringify(payload) }),
+
+    updateEmployee: (id: number, payload: EmployeeUpdateInput) =>
+      request<User>(`/employees/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+
+    deactivateEmployee: (id: number) =>
+      request<User>(`/employees/${id}/deactivate`, { method: 'POST' }),
+
+    activateEmployee: (id: number) =>
+      request<User>(`/employees/${id}/activate`, { method: 'POST' }),
+
+    changeEmployeeRole: (id: number, role: 'admin' | 'employee') =>
+      request<User>(`/employees/${id}/role`, {
+        method: 'PATCH',
+        body: JSON.stringify({ role }),
+      }),
   }
 }
 

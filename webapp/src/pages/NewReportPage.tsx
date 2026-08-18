@@ -1,8 +1,8 @@
 import { AlertCircle, Check, Images, Loader2, MapPin, X } from 'lucide-react'
-import type { ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { Section } from '@/components/Section'
 import { ErrorScreen, LoadingScreen } from '@/components/StatusScreen'
 import { Button } from '@/components/ui/button'
 import { Input, Select } from '@/components/ui/input'
@@ -29,26 +29,6 @@ interface PhotoItem {
   previewUrl: string
   fileId?: string
   status: 'uploading' | 'done' | 'error'
-}
-
-function Section({
-  title,
-  hint,
-  children,
-}: {
-  title: string
-  hint?: string
-  children: ReactNode
-}) {
-  return (
-    <section className="space-y-2">
-      <div>
-        <h2 className="text-sm font-medium">{title}</h2>
-        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-      </div>
-      {children}
-    </section>
-  )
 }
 
 export function NewReportPage() {

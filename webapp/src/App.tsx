@@ -4,7 +4,9 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/components/AppShell'
 import { ErrorScreen, LoadingScreen } from '@/components/StatusScreen'
 import { ApiProvider, useMe } from '@/lib/queries'
+import { EmployeeDetailPage } from '@/pages/EmployeeDetailPage'
 import { EmployeesPage } from '@/pages/EmployeesPage'
+import { NewEmployeePage } from '@/pages/NewEmployeePage'
 import { NewReportPage } from '@/pages/NewReportPage'
 import { ReportDetailPage } from '@/pages/ReportDetailPage'
 import { ReportsPage } from '@/pages/ReportsPage'
@@ -27,6 +29,14 @@ function Shell() {
         <Route
           path="employees"
           element={isAdmin ? <EmployeesPage /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="employees/new"
+          element={isAdmin ? <NewEmployeePage /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="employees/:id"
+          element={isAdmin ? <EmployeeDetailPage /> : <Navigate to="/" replace />}
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
